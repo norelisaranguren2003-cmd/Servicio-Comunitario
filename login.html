@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Servicio Comunitario</title>
+    <link rel="stylesheet" href="login.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="login_contenedor">
+        <form id="loginForm" class="login-t">
+            <h2>Bienvenido</h2>
+            <p>Sistema de Servicio Comunitario</p>
+
+            <div class="role-selector">
+                <input type="radio" name="role" id="admin" value="admin">
+                <label for="admin">Admin</label>
+                
+                <input type="radio" name="role" id="user" value="user" checked>
+                <label for="user">Secretario</label>
+            </div>
+
+            <div class="cuadros-texto">
+                <i class="fas fa-id-card"></i>
+                <input type="text" id="usuario" name="usuario" placeholder="Cédula" required pattern="^\d{6,12}$" title="Ingrese solo números para la cédula">
+            </div>
+            
+            <div class="cuadros-texto">
+                <i class="fas fa-lock"></i>
+                <input type="password" id="password" name="password" placeholder="Contraseña" required>
+                <i class="fas fa-eye toggle-password" id="togglePassword"></i>
+            </div>
+
+            <button type="submit" class="login-btn">Entrar</button>
+            
+            <div id="error-msg" class="error-msg"></div>
+        </form>
+    </div>
+
+    <script>
+        // Toggle Password Visibility
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#password');
+
+        togglePassword.addEventListener('click', function (e) {
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            this.classList.toggle('fa-eye-slash');
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const usuario = document.getElementById('usuario').value.trim();
+            const passwordVal = document.getElementById('password').value;
+            const roleSelected = document.querySelector('input[name="role"]:checked').value;
+            const errorMsg = document.getElementById('error-msg');
+
+            if (!usuario || !passwordVal) {
+                errorMsg.textContent = 'Por favor completa todos los campos';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ usuario, password: passwordVal, role: roleSelected })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    sessionStorage.setItem('usuario', JSON.stringify(result.usuario));
+                    if (result.usuario.nombre_rol === 'Administrador') {
+                        window.location.href = '/admin.html';
+                    } else {
+                        window.location.href = '/usuario.html';
+                    }
+                } else {
+                    errorMsg.textContent = result.error || 'Error al iniciar sesión';
+                    errorMsg.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error en fetch:', error);
+                errorMsg.textContent = 'Error de conexión con el servidor';
+                errorMsg.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
+

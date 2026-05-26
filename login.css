@@ -1,0 +1,134 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #c4d5f7 0%, #a7c3f3 100%);
+}
+
+.login_contenedor {
+    background: #fff;
+    padding: 60px;
+    border-radius: 24px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 500px;
+}
+
+.login-t {
+    text-align: center;
+}
+
+.login-t h2 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 2.5rem;
+}
+
+.login-t p {
+    color: #777;
+    margin-bottom: 40px;
+    font-size: 1.1rem;
+}
+
+/* Selector de Rol */
+.role-selector {
+    display: flex;
+    background: #f0f0f0;
+    padding: 5px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+}
+
+.role-selector input[type="radio"] {
+    display: none;
+}
+
+.role-selector label {
+    flex: 1;
+    padding: 15px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    color: #555;
+    font-weight: 600;
+    text-align: center;
+}
+
+.role-selector input[type="radio"]:checked + label {
+    background: #fff;
+    color: #4facfe;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+/* Inputs con Iconos */
+.cuadros-texto {
+    margin-bottom: 20px;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.cuadros-texto i {
+    position: absolute;
+    left: 15px;
+    color: #999;
+}
+
+.cuadros-texto i.toggle-password {
+    left: auto;
+    right: 15px;
+    cursor: pointer;
+}
+
+.cuadros-texto input {
+    width: 100%;
+    padding: 15px 15px 15px 45px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    outline: none;
+    background: #f9f9f9;
+    transition: 0.3s;
+    font-size: 1rem;
+}
+
+.cuadros-texto input:focus {
+    border-color: #4facfe;
+    background: #fff;
+}
+
+/* Botón */
+.login-btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+}
+
+.error-msg {
+    color: #e74c3c;
+    margin-top: 15px;
+    text-align: center;
+    font-size: 0.9rem;
+    display: none;
+}
+

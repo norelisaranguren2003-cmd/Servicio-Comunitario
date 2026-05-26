@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel de Administrador</title>
+    <link rel="stylesheet" href="admin.css" />
+    <!-- Flatpickr for modern datepicker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+    <!-- Font Awesome for modern icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+
+  <body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Gestión Social</h2>
+      </div>
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a
+            class="nav-link active"
+            onclick="mostrarSeccion('dashboard', this)"
+          >
+            <i class="fas fa-th-large"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" onclick="mostrarSeccion('lista-personas', this)">
+            <i class="fas fa-users"></i>
+            <span>Ver Personas</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" onclick="mostrarSeccion('crear-persona', this)">
+            <i class="fas fa-user-plus"></i>
+            <span>Crear Persona</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" onclick="mostrarSeccion('crear-usuario', this)">
+            <i class="fas fa-key"></i>
+            <span>Crear Usuario</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a
+            class="nav-link"
+            onclick="mostrarSeccion('registro-bombonas', this)"
+          >
+            <i class="fas fa-gas-pump"></i>
+            <span>Registro Bombonas</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a
+            class="nav-link"
+            onclick="mostrarSeccion('estadisticas-calles', this)"
+          >
+            <i class="fas fa-chart-bar"></i>
+            <span>Estadísticas por Calle</span>
+          </a>
+        </li>
+      </ul>
+      <div class="sidebar-footer">
+        <a
+          class="nav-link"
+          onclick="cerrarSesion()"
+          style="color: var(--danger)"
+        >
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Cerrar Sesión</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <header class="top-bar">
+        <div class="greeting">
+          <h1>Panel de Administrador</h1>
+          <p
+            id="admin-name"
+            style="color: var(--text-muted); font-size: 0.9rem"
+          >
+            Cargando...
+          </p>
+        </div>
+        <div class="user-profile">
+          <div class="stat-info" style="text-align: right; margin-right: 15px">
+            <span class="badge" style="background: var(--accent); color: white"
+              >Online</span
+            >
+          </div>
+          <img
+            src="https://ui-avatars.com/api/?name=Admin&background=1a5f7a&color=fff"
+            alt="Avatar"
+            style="width: 45px; border-radius: 12px"
+          />
+        </div>
+      </header>
+
+      <!-- Dynamic Content Sections -->
+      <div id="dashboard" class="section active">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon icon-blue">
+              <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+              <h4>Total Personas</h4>
+              <div class="number" id="total-personas">0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-teal">
+              <i class="fas fa-user-shield"></i>
+            </div>
+            <div class="stat-info">
+              <h4>Administradores</h4>
+              <div class="number" id="total-admins">0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-purple">
+              <i class="fas fa-user-edit"></i>
+            </div>
+            <div class="stat-info">
+              <h4>Secretarios</h4>
+              <div class="number" id="total-secretarios">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="menu-grid">
+          <div class="menu-card" onclick="mostrarSeccion('lista-personas')">
+            <div class="icon-wrapper">
+              <i class="fas fa-list-ul"></i>
+            </div>
+            <h3>Gestionar Personas</h3>
+            <p>Visualiza y administra todos los registros del sistema.</p>
+          </div>
+          <div class="menu-card" onclick="mostrarSeccion('crear-persona')">
+            <div class="icon-wrapper">
+              <i class="fas fa-address-card"></i>
+            </div>
+            <h3>Nuevo Registro</h3>
+            <p>Agrega ciudadanos y miembros de la comunidad fácilmente.</p>
+          </div>
+          <div class="menu-card" onclick="mostrarSeccion('gestionar_bombonas')">
+            <div class="icon-wrapper icon-gas">
+              <i class="fas fa-gas-pump"></i>
+            </div>
+            <h3>Gestionar Cilindro</h3>
+            <p>Registra compras de bombonas con validación de stock.</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="lista-personas" class="section">
+        <div class="section-header">
+          <h2>
+            <i class="fas fa-users" style="margin-right: 10px"></i> Lista de
+            Personas
+          </h2>
+          <button class="btn-back" onclick="mostrarSeccion('dashboard')">
+            <i class="fas fa-arrow-left"></i> Volver
+          </button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Cédula</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Sexo</th>
+                <th>Edad</th>
+                <th>Estado Civil</th>
+                <th>Celular</th>
+                <th>Carga Familiar</th>
+                <th>Calle</th>
+                <th>Estatus</th>
+                <th>Registro</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-personas">
+              
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="crear-persona" class="section">
+        <div class="section-header">
+          <h2>
+            <i class="fas fa-user-plus" style="margin-right: 10px"></i> Crear
+            Nueva Persona
+          </h2>
+          <button class="btn-back" onclick="mostrarSeccion('dashboard')">
+            <i class="fas fa-arrow-left"></i> Volver
+          </button>
+        </div>
+
+        <div id="alerta-persona" class="alert"></div>
+
+        <form id="form-persona" class="form-grid">
+          <div class="form-group">
+            <label>Cédula</label>
+            <input
+              type="number"
+              id="p-cedula"
+              required
+              pattern="^\d{6,10}$"
+              title="Ingrese solo números"
+              placeholder="Ej: 12345678"
+            />
+          </div>
+          <div class="form-group">
+            <label>Nombre</label>
+            <input
+              type="text"
+              id="p-nombre"
+              required
+              pattern="^[A-Za-zñÑáéíóúÁÉÍÓÚ\s]+$"
+              title="Solo letras"
+              placeholder="Juan"
+            />
+          </div>
+          <div class="form-group">
+            <label>Apellido</label>
+            <input
+              type="text"
+              id="p-apellido"
+              required
+              pattern="^[A-Za-zñÑáéíóúÁÉÍÓÚ\s]+$"
+              title="Solo letras"
+              placeholder="Pérez"
+            />
+          </div>
+          <div class="form-group">
+            <label>Sexo</label>
+            <select id="p-sexo">
+              <option value="M">Masculino</option>
+              <option value="F">Femenino</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Edad</label>
+            <input type="number" id="p-edad" placeholder="30" required />
+          </div>
+          <div class="form-group">
+            <label>Estado Civil</label>
+            <select id="p-cilvil">
+              <option value="1">Soltero/a</option>
+              <option value="2">Casado/a</option>
+              <option value="3">Divorciado/a</option>
+              <option value="4">Viudo/a</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Celular</label>
+            <input type="number" id="p-celular" placeholder="04161234567" required />
+          </div>
+          <div class="form-group">
+            <label>Carga Familiar</label>
+            <input type="text" id="p-carga" placeholder="N° de personas" />
+          </div>
+          <div class="form-group">
+            <label >Calle</label>
+            <select id="p-calle" required>
+              <option value="">Seleccione calle</option>
+              <option value="Calle 1">Calle 1</option>
+              <option value="Calle 2">Calle 2</option>
+              <option value="Calle 3">Calle 3</option>
+              <option value="Calle 4">Calle 4</option>
+              <option value="Calle 5">Calle 5</option>
+              <option value="Calle 6">Calle 6</option>
+              <option value="Calle 7">Calle 7</option>
+              <option value="Callejón">Callejón</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Fecha de Registro</label>
+            <input type="text" id="p-fecha" placeholder="Seleccionar fecha" required />
+          </div>
+          <div class="form-group">
+            <label>Estatus</label>
+            <select id="p-estatus">
+              <option value="Activo">Activo</option>
+              <option value="Inactivo">Inactivo</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column: span 2">
+            <button type="submit" class="btn-submit">
+              Guardar Registro
+              <i class="fas fa-save" style="margin-left: 10px"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div id="crear-usuario" class="section">
+        <div class="section-header">
+          <h2>
+            <i class="fas fa-key" style="margin-right: 10px"></i> Acceso al
+            Sistema
+          </h2>
+          <button class="btn-back" onclick="mostrarSeccion('dashboard')">
+            <i class="fas fa-arrow-left"></i> Volver
+          </button>
+        </div>
+
+        <div id="alerta-usuario" class="alert"></div>
+
+        <form id="form-usuario" class="form-grid">
+          <div class="form-group">
+            <label>Cédula de Persona</label>
+            <input
+              type="text"
+              id="u-cedula"
+              required
+              pattern="^\d{6,10}$"
+              title="Ingrese solo números"
+              placeholder="12345678"
+            />
+          </div>
+          <div class="form-group">
+            <label>Usuario (Login)</label>
+            <input type="text" id="u-login" required placeholder="jperez" />
+          </div>
+          <div class="form-group">
+            <label>Contraseña</label>
+            <input
+              type="password"
+              id="u-password"
+              required
+              placeholder="********"
+            />
+          </div>
+          <div class="form-group">
+            <label>Rol asignado</label>
+            <select id="u-rol">
+              <option value="1">Administrador</option>
+              <option value="2">Secretario</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column: span 2">
+            <button type="submit" class="btn-submit">
+              Crear Credenciales
+              <i class="fas fa-user-shield" style="margin-left: 10px"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+      <div id="registro-bombonas" class="section">
+        <div class="section-header">
+          <h2>
+            <i class="fas fa-gas-pump"></i> Registros de Bombonas por Ciudadano
+          </h2>
+          <button class="btn-back" onclick="mostrarSeccion('dashboard')">
+            <i class="fas fa-arrow-left"></i> Volver
+          </button>
+        </div>
+
+        <div class="form-card-container">
+          <h3>Asignar Bombonas a Ciudadano</h3>
+
+          <div class="form-grid-bombonas">
+            <div class="form-group-search">
+              <label>Seleccionar Persona (Cédula o Nombre)</label>
+              <div class="search-box">
+                <input
+                  type="text"
+                  id="busqueda-persona"
+                  placeholder="Buscar..."
+                  oninput="filtrarPersonasParaBombona()"
+                />
+                <i class="fas fa-search search-icon"></i>
+              </div>
+              <select id="select-persona-bombona" size="3"></select>
+            </div>
+
+            <div class="form-group-action">
+              <button
+                class="btn-select"
+                onclick="prepararFormularioRegistro()"
+                style="margin-top: 10px"
+              >
+                Seleccionar <i class="fas fa-hand-pointer"></i>
+              </button>
+            </div>
+
+            <div
+              class="form-group-quantities"
+              id="seccion-cantidades"
+              style="display: none"
+            >
+              <h4>Cantidad de Cilindros</h4>
+              <div class="quantities-grid">
+                <div class="qty-item">
+                  <label>Pequeñas</label>
+                  <input
+                    type="number"
+                    id="qty-pequena"
+                    min="0"
+                    placeholder="0"
+                  />
+                </div>
+                <div class="qty-item">
+                  <label>Medianas</label>
+                  <input
+                    type="number"
+                    id="qty-mediana"
+                    min="0"
+                    placeholder="0"
+                  />
+                </div>
+                <div class="qty-item">
+                  <label>Grandes</label>
+                  <input
+                    type="number"
+                    id="qty-grande"
+                    min="0"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <button
+                class="btn-submit btn-save-bombona"
+                onclick="guardarNuevoRegistroBombona()"
+              >
+                Guardar <i class="fas fa-save"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container mt-2">
+          <table>
+            <thead>
+              <tr>
+                <th>Cédula</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Sexo</th>
+                <th>Edad</th>
+                <th>Celular</th>
+                <th class="th-cylinders">Peq</th>
+                <th class="th-cylinders">Med</th>
+                <th class="th-cylinders">Gra</th>
+                <th>Registro</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-registro-bombonas"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="gestionar_bombonas" class="section">
+        <div class="section-header">
+          <h2>
+            <i class="fas fa-file-invoice-dollar"></i> Gestión de Pagos y Ventas
+          </h2>
+          <button class="btn-back" onclick="mostrarSeccion('dashboard')">
+            <i class="fas fa-arrow-left"></i> Volver
+          </button>
+        </div>
+
+        <!-- Tabla para seleccionar a quién se le va a vender -->
+        <div class="table-container">
+          <h3>Seleccione un beneficiario para procesar la compra</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Cédula</th>
+                <th>Nombre</th>
+                <th>Cilindros (P|M|G)</th>
+                <th>Fecha Registro</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-usuarios-compras">
+              <!-- Se llena con cargarTablaParaVentas() -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Formulario de Pago (se muestra al elegir a alguien) -->
+        <div
+          id="formulario-compra"
+          class="form-card-container mt-2"
+          style="display: none; border-top: 4px solid #1a5f7a"
+        >
+          <h3>Registrar Compra para: <span id="cliente-nombre"></span></h3>
+          <div class="form-grid-bombonas">
+            <div class="qty-item">
+              <label>Pequeñas</label>
+              <input type="number" id="v-peq" value="0" min="0" />
+            </div>
+            <div class="qty-item">
+              <label>Medianas</label>
+              <input type="number" id="v-med" value="0" min="0" />
+            </div>
+            <div class="qty-item">
+              <label>Grandes</label>
+              <input type="number" id="v-gra" value="0" min="0" />
+            </div>
+            <div class="qty-item">
+              <label>Monto Bs.</label>
+              <input type="number" id="v-monto" step="0.01" />
+            </div>
+            <div class="qty-item">
+              <label>Método</label>
+              <select id="v-metodo">
+                
+                <option value="Pago Móvil">Pago Móvil</option>
+                <option value="Transferencia">Transferencia</option>
+              </select>
+            </div>
+            <div class="qty-item">
+              <label>Referencia (Texto)</label>
+              <input type="text" id="v-referencia-texto" placeholder="Últimos 4 dígitos" />
+            </div>
+            <div class="qty-item">
+              <label>Referencia (Foto)</label>
+              <input type="file" id="v-referencia-foto" accept="image/*" />
+            </div>
+            <button
+              class="btn-submit"
+              onclick="validarYProcesarVenta()"
+              style="background-color: #1a5f7a"
+            >
+              Confirmar Operación <i class="fas fa-check"></i>
+            </button>
+          </div>
+        </div>
+        <!-- TABLA DE HISTORIAL DE VENTAS REALIZADAS -->
+        <div class="table-container mt-2" id="historial-ventas-container">
+          <h3><i class="fas fa-history"></i> Últimas Ventas Procesadas</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Beneficiario</th>
+                <th>Cantidades (P|M|G)</th>
+                <th>Monto (Bs.)</th>
+                <th>Método</th>
+                <th>Referencia</th>
+                <th>Fecha de Pago</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-historial-pagos">
+              <!-- Se llenará dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ESTADÍSTICAS DE VENTAS POR CALLE -->
+        <div class="table-container mt-2" id="estadisticas-ventas-container">
+          <h3 style="color: var(--primary); margin-bottom: 1.5rem;"><i class="fas fa-chart-line">
+          </i> Estadísticas de Ventas por Calle</h3>
+          <div class="stats-grid-calles" id="estadisticas-ventas-grid">
+            <!-- Se llenará dinámicamente -->
+          </div>
+        </div>
+      </div>
+
+      <div id="estadisticas-calles" class="section">
+        <div class="section-header">
+          <h2>
+            <i class="fas fa-chart-bar" style="margin-right: 10px"></i> Estadísticas por Calle
+          </h2>
+          <button class="btn-back" onclick="mostrarSeccion('dashboard')">
+            <i class="fas fa-arrow-left"></i> Volver
+          </button>
+        </div>
+
+        <div class="stats-grid-calles" id="estadisticas-grid">
+          <!-- Se llenará dinámicamente -->
+        </div>
+      </div>
+    </main>
+     <div id="modal-editar-persona" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);">
+    
+    <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+        
+        <div style="background-color: #fff; padding: 25px; border-radius: 12px; width: 480px; max-height: 85vh; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-family: sans-serif; display: flex; flex-direction: column;">
+            
+            <div style="padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                <h3 style="margin: 0; color: #104358; font-size: 1.4rem;">Editar Datos de la Persona</h3>
+            </div>
+            
+            <form id="form-editar-persona" style="overflow-y: auto; padding-right: 10px; margin-top: 15px; flex-grow: 1; text-align: left;">
+                <input type="hidden" id="edit-id">
+                
+                <div style="margin-bottom: 12px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Cédula:</label>
+                    <input type="number" id="edit-cedula" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                
+                <div style="margin-bottom: 12px; display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Nombre:</label>
+                        <input type="text" id="edit-nombre" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Apellido:</label>
+                        <input type="text" id="edit-apellido" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 12px; display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Sexo:</label>
+                        <select id="edit-sexo" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                            <option value="M">Masculino</option>
+                            <option value="F">Femenino</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Edad:</label>
+                        <input type="number" id="edit-edad" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Estado Civil:</label>
+                    <select id="edit-civil" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                        <option value="1">Soltero/a</option>
+                        <option value="2">Casado/a</option>
+                        <option value="3">Divorciado/a</option>
+                        <option value="4">Viudo/a</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Celular / Teléfono:</label>
+                    <input type="tel" id="edit-celular" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Carga Familiar (Nº de personas):</label>
+                    <input type="number" id="edit-carga" min="0" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Calle / Sector:</label>
+                    <input type="text" id="edit-calle" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Estatus de la Persona:</label>
+                    <select id="edit-estatus" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                        <option value="Activo">Activo</option>
+                        <option value="Inactivo">Inactivo</option>
+                        
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Fecha de Registro:</label>
+                    <input type="text" id="edit-fecha" placeholder="Seleccionar fecha" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                
+                
+                <div style="text-align: right; padding-top: 15px; border-top: 1px solid #eee; margin-top: 15px;">
+                    <button type="button" onclick="cerrarModalEditar()" style="background-color: #6c757d; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 5px;">Cancelar</button>
+                    <button type="submit" style="background-color: #159895; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold;">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+    <script>
+      
+      const usuario = JSON.parse(sessionStorage.getItem("usuario"));
+      if (
+        !usuario ||
+        (usuario.nombre_rol !== "Administrador" &&
+          usuario.nombre_rol !== "Admin")
+      ) {
+        alert("Acceso denegado");
+        window.location.href = "/login.html";
+      }
+
+      
+      const fullName =
+        `${usuario.nombre || ""} ${usuario.apellido || ""}`.trim() ||
+        "Administrador";
+      document.querySelector(".greeting h1").innerHTML =
+        `Panel de Administrador <span style="font-weight: 300; font-size: 1.1rem; color: var(--text-muted); margin-left: 10px;">| ${fullName}</span>`;
+      if (document.getElementById("admin-name"))
+        document.getElementById("admin-name").remove();
+
+      function cerrarSesion() {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: white;
+          padding: 2rem;
+          border-radius: 15px;
+          box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+          z-index: 10000;
+          text-align: center;
+          min-width: 300px;
+        `;
+        modal.innerHTML = `
+          <p style="font-size: 1.1rem; margin-bottom: 1.5rem; color: var(--text-main);">¿Estás seguro de que deseas cerrar sesión?</p>
+          <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button id="btn-cancelar" style="padding: 0.6rem 1.2rem; border: 1px solid #ccc; background: white; border-radius: 8px; cursor: pointer;">Cancelar</button>
+            <button id="btn-confirmar" style="padding: 0.6rem 1.2rem; border: none; background: var(--danger); color: white; border-radius: 8px; cursor: pointer;">Cerrar Sesión</button>
+          </div>
+        `;
+        document.body.appendChild(modal);
+
+        document.getElementById('btn-cancelar').onclick = () => modal.remove();
+        document.getElementById('btn-confirmar').onclick = () => {
+          sessionStorage.removeItem("usuario");
+          window.location.href = "/login.html";
+        };
+      }
+
+      
+      async function cargarEstadisticas() {
+        try {
+          const response = await fetch("/stats");
+          const data = await response.json();
+
+          document.getElementById("total-personas").textContent =
+            data.total_personas || 0;
+          document.getElementById("total-admins").textContent =
+            data.total_admins || 0;
+          document.getElementById("total-secretarios").textContent =
+            data.total_secretarios || 0;
+        } catch (error) {
+          console.error("Error al cargar estadísticas:", error);
+        }
+      }
+
+     async function cargarPersonas() {
+    try {
+      const response = await fetch("/personas");
+      const data = await response.json();
+      const tbody = document.getElementById("tabla-personas");
+      tbody.innerHTML = "";
+
+      data.personas.forEach((p) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${p.cedula}</td>
+            <td>${p.nombre}</td>
+            <td>${p.apellido}</td>
+            <td>${p.sexo}</td>
+            <td>${p.edad || "-"}</td>
+            <td>${p.estado_civil || "-"}</td>
+            <td>${p.celular || "-"}</td>
+            <td>${p.carga_familiar || 0}</td>
+            <td>${p.calle || "-"}</td>
+            <td><span class="badge-${(p.estatus || 'Activo').toLowerCase()}">${p.estatus || "Activo"}</span></td>
+            <td>${new Date(p.fecha_registro).toLocaleDateString()}</td>
+            <td>
+                <button onclick="abrirModalEditar(
+                    ${p.id_persona}, 
+                    '${p.cedula}', 
+                    '${p.nombre}', 
+                    '${p.apellido}', 
+                    '${p.sexo}',
+                    '${p.edad || ""}',
+                    '${p.id_estado_civil || 1}', 
+                    '${p.celular || ""}', 
+                    '${p.carga_familiar || 0}',
+                    '${p.calle || ""}',
+                    '${p.fecha_registro}',
+                    '${p.estatus || "Activo"}' /* <-- Enviamos el estatus aquí */
+                )" style="background-color: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">
+                    Editar
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (error) {
+      console.error("Error al cargar personas:", error);
+    }
+}
+
+      
+      document
+        .getElementById("form-persona")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const alertBox = document.getElementById("alerta-persona");
+
+          const formData = {
+            cedula: document.getElementById("p-cedula").value.trim(),
+            nombre: document.getElementById("p-nombre").value.trim(),
+            apellido: document.getElementById("p-apellido").value.trim(),
+            sexo: document.getElementById("p-sexo").value,
+            edad: document.getElementById("p-edad").value,
+            id_estado_civil: document.getElementById("p-cilvil").value,
+            celular: document.getElementById("p-celular").value.trim(),
+            carga_familiar:
+              document.getElementById("p-carga").value.trim() || 0,
+            calle: document.getElementById("p-calle").value,
+            fecha_registro: document.getElementById("p-fecha").value,
+            estatus: document.getElementById("p-estatus").value,
+          };
+
+          try {
+            const response = await fetch("/personas", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(formData),
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+              alertBox.textContent = "¡Persona registrada exitosamente!";
+              alertBox.className = "alert alert-success";
+              alertBox.style.display = "block";
+              e.target.reset();
+              cargarEstadisticas(); // Update dashboard
+            } else {
+              alertBox.textContent = result.error || "Error al guardar";
+              alertBox.className = "alert alert-error";
+              alertBox.style.display = "block";
+            }
+          } catch (error) {
+            alertBox.textContent = "Error de conexión";
+            alertBox.className = "alert alert-error";
+            alertBox.style.display = "block";
+          }
+        });
+
+      
+      document
+        .getElementById("form-usuario")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const alertBox = document.getElementById("alerta-usuario");
+
+          // First we need to find the id_persona for the cedula provided
+          const cedula = document.getElementById("u-cedula").value.trim();
+
+          try {
+            const resPersonas = await fetch("/personas");
+            const dataPersonas = await resPersonas.json();
+            const persona = dataPersonas.personas.find(
+              (p) => p.cedula === cedula,
+            );
+
+            if (!persona) {
+              alertBox.textContent =
+                "No se encontró ninguna persona con esa cédula. Regístrala primero.";
+              alertBox.className = "alert alert-error";
+              alertBox.style.display = "block";
+              return;
+            }
+
+            const formData = {
+              id_persona: persona.id_persona,
+              usuario_login: document.getElementById("u-login").value.trim(),
+              password:
+                document.getElementById("u-password").value || persona.cedula,
+              id_rol: document.getElementById("u-rol").value,
+            };
+
+            const response = await fetch("/usuarios", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(formData),
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+              alertBox.textContent = "¡Usuario creado exitosamente!";
+              alertBox.className = "alert alert-success";
+              alertBox.style.display = "block";
+              e.target.reset();
+              cargarEstadisticas();
+            } else {
+              alertBox.textContent = result.error || "Error al crear usuario";
+              alertBox.className = "alert alert-error";
+              alertBox.style.display = "block";
+            }
+          } catch (error) {
+            alertBox.textContent = "Error de conexión";
+            alertBox.className = "alert alert-error";
+            alertBox.style.display = "block";
+          }
+        });
+
+      window.onload = () => {
+        cargarEstadisticas();
+      };
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+    <script>
+      // Inicializar Flatpickr después de cargar la librería
+      document.addEventListener('DOMContentLoaded', function() {
+        if (typeof flatpickr !== 'undefined') {
+          flatpickr("#p-fecha", {
+            locale: "es",
+            dateFormat: "Y-m-d",
+            maxDate: "today",
+            disableMobile: "true",
+            position: "auto"
+          });
+
+          flatpickr("#edit-fecha", {
+            locale: "es",
+            dateFormat: "Y-m-d",
+            maxDate: "today",
+            disableMobile: "true",
+            position: "auto"
+          });
+        }
+      });
+    </script>
+    <script src="scripts.js"></script>
+  </body>
+</html>
