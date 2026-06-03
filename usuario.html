@@ -174,10 +174,9 @@
                             <th>Sexo</th>
                             <th>Edad</th>
                             <th>Celular</th>
-                            <th class="th-cylinders">Peq</th>
-                            <th class="th-cylinders">Med</th>
-                            <th class="th-cylinders">Gra</th>
-                            <th>¿Pagó?</th>
+                            <th class="th-cylinders">Peq (10kg)</th>
+                            <th class="th-cylinders">Med (18kg)</th>
+                            <th class="th-cylinders">Gra (43 kg)</th>
                             <th>Registro</th>
                         </tr>
                     </thead>
@@ -286,12 +285,14 @@
             </div>
 
             <!-- ESTADÍSTICAS DE VENTAS POR CALLE -->
-            <div class="table-container mt-2" id="estadisticas-ventas-container">
-                <h3 style="color: var(--primary); margin-bottom: 1.5rem;"><i class="fas fa-chart-line"></i> Estadísticas de Ventas por Calle</h3>
-                <div class="stats-grid-calles" id="estadisticas-ventas-grid">
-                    <!-- Se llenará dinámicamente -->
-                </div>
-            </div>
+           <div class="compras-estadisticas-container">
+    <div class="header-seccion">
+        <h2><i class="fas fa-chart-pie"></i> Estadísticas de Ventas de mi Calle</h2>
+    </div>
+    <div id="grid-calles-compras-usuario">
+        <p>Cargando estadísticas financieras...</p>
+    </div>
+</div>
         </div>
     </main>
 
@@ -372,6 +373,7 @@
                 window.location.href = '/login.html';
             };
         }
+        
 
     </script>
     <script src="scripts.js"></script>

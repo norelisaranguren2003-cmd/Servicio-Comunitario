@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Panel de Administrador</title>
     <link rel="stylesheet" href="admin.css" />
-    <!-- Flatpickr for modern datepicker -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
     <!-- Font Awesome for modern icons -->
     <link
       rel="stylesheet"
@@ -289,7 +286,7 @@
           </div>
           <div class="form-group">
             <label>Fecha de Registro</label>
-            <input type="text" id="p-fecha" placeholder="Seleccionar fecha" required />
+            <input type="date" id="p-fecha" required />
           </div>
           <div class="form-group">
             <label>Estatus</label>
@@ -649,9 +646,19 @@
                     <input type="number" id="edit-carga" min="0" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
                 </div>
                 
-                <div style="margin-bottom: 12px;">
-                    <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Calle / Sector:</label>
-                    <input type="text" id="edit-calle" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                <div style="margin-bottom: 15px;">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Calle</label>
+            <select id="edit-calle" required>
+              <option value="">Seleccione calle</option>
+              <option value="Calle 1">Calle 1</option>
+              <option value="Calle 2">Calle 2</option>
+              <option value="Calle 3">Calle 3</option>
+              <option value="Calle 4">Calle 4</option>
+              <option value="Calle 5">Calle 5</option>
+              <option value="Calle 6">Calle 6</option>
+              <option value="Calle 7">Calle 7</option>
+              <option value="Callejón">Callejón</option>
+            </select>
                 </div>
                 
                 <div style="margin-bottom: 15px;">
@@ -665,7 +672,7 @@
 
                 <div style="margin-bottom: 12px;">
                     <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #444;">Fecha de Registro:</label>
-                    <input type="text" id="edit-fecha" placeholder="Seleccionar fecha" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+                    <input type="date" id="edit-fecha" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
                 </div>
                 
                 
@@ -905,31 +912,7 @@
         cargarEstadisticas();
       };
     </script>
-
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
-    <script>
-      // Inicializar Flatpickr después de cargar la librería
-      document.addEventListener('DOMContentLoaded', function() {
-        if (typeof flatpickr !== 'undefined') {
-          flatpickr("#p-fecha", {
-            locale: "es",
-            dateFormat: "Y-m-d",
-            maxDate: "today",
-            disableMobile: "true",
-            position: "auto"
-          });
-
-          flatpickr("#edit-fecha", {
-            locale: "es",
-            dateFormat: "Y-m-d",
-            maxDate: "today",
-            disableMobile: "true",
-            position: "auto"
-          });
-        }
-      });
-    </script>
+  
     <script src="scripts.js"></script>
   </body>
 </html>

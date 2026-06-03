@@ -10,12 +10,10 @@ function mostrarSeccion(id, element) {
         sec.style.display = 'none';
     });
 
-    
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
     });
 
-    
     const seccionActiva = document.getElementById(id);
     if (seccionActiva) {
         seccionActiva.classList.add('active');
@@ -26,24 +24,66 @@ function mostrarSeccion(id, element) {
         // EJECUTAR CARGAS ESPECÍFICAS
         if (id === 'dashboard') cargarEstadisticas();
         if (id === 'lista-personas') cargarPersonas();
-        if (id === 'registro-bombonas') {
-            cargarPersonasParaBuscadorBombonas();
-            cargarTablaRegistroBombonas();
+        
+        // CÓDIGO MODIFICADO CON CONTROL DE ROLES
+if (id === 'registro-bombonas') {
+            const datosSesion = sessionStorage.getItem('usuario');
+            const usuarioLogueado = datosSesion ? JSON.parse(datosSesion) : null;
 
-            const secCant = document.getElementById('seccion-cantidades');
-            if(secCant) secCant.style.display = 'none';
+            if (usuarioLogueado && usuarioLogueado.nombre_rol === 'Administrador') {
+                cargarPersonasParaBuscadorBombonas();
+                cargarTablaRegistroBombonas();
+                const secCant = document.getElementById('seccion-cantidades');
+                if(secCant) secCant.style.display = 'none';
+            } else {
+                // VISTA SECRETARIO: Cargamos el buscador superior y la tabla limpia adaptada
+                cargarPersonasParaBuscadorBombonasSecretario();
+                cargarTablaRegistroBombonasSecretario();
+            }
         }
+
         if (id === 'gestion-compras-modulo') {
             cargarTablaParaVentas();
             document.getElementById('formulario-compra').style.display = 'none';
         }
+        
+        // 🎯 AQUÍ ES DONDE SUCEDE LA MAGIA AL DAR CLIC EN GESTIÓN DE BOMBONAS
         if (id === 'gestionar_bombonas') {
             cargarTablaParaVentas();
             cargarHistorialVentas();
-            cargarEstadisticasVentasCalles();
+            
+            // Evaluamos de forma segura el rol del usuario conectado desde la sesión
+            try {
+                const datosSesion = sessionStorage.getItem('usuario');
+                const usuarioLogueado = datosSesion ? JSON.parse(datosSesion) : null;
+                
+                // Si el id_rol es 2 (o el valor que definiste para usuario/secretaría regular)
+                if (usuarioLogueado && usuarioLogueado.id_rol === 2) {
+                    console.log("👤 Modo Usuario: Cargando estadísticas de 'Mi Calle' en Gestión de Bombonas");
+                    if (typeof cargarEstadisticasVentaMiCalle === 'function') {
+                        cargarEstadisticasVentaMiCalle();
+                    }
+                } else {
+                    // Si es administrador (id_rol = 1) carga el panel global de todas las calles
+                    console.log("👑 Modo Admin: Cargando estadísticas globales de todas las calles");
+                    if (typeof cargarEstadisticasVentasCalles === 'function') {
+                        cargarEstadisticasVentasCalles();
+                    }
+                }
+            } catch (error) {
+                console.error("Error al identificar el rol en la sección gestión de bombonas:", error);
+                // Plan de respaldo por si falla el JSON: si existe tu contenedor de usuario, ejecutamos su función
+                if (document.getElementById('grid-calles-compras-usuario')) {
+                    cargarEstadisticasVentaMiCalle();
+                } else {
+                    cargarEstadisticasVentasCalles();
+                }
+            }
+
             const formCompra = document.getElementById('formulario-compra');
             if(formCompra) formCompra.style.display = 'none';
         }
+        
         if (id === 'estadisticas-calles') {
             cargarEstadisticasCalles();
         }
@@ -139,22 +179,41 @@ async function guardarNuevoRegistroBombona() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-    id_persona: personaSeleccionada.id_persona,
-    pequenas: peq, 
-    medianas: med,
-    grandes: gra
-})
+                id_persona: personaSeleccionada.id_persona,
+                pequeñas: peq, 
+                medianas: med,
+                grandes: gra
+            })
         });
 
         if (response.ok) {
             alert('¡Inventario registrado con éxito!');
-            await cargarTablaRegistroBombonas(); 
-            await cargarPersonasParaBuscadorBombonas(); 
-            cargarEstadisticasCalles();
-            cargarEstadisticasVentasCalles();
-            if (typeof cargarEstadisticas === 'function') {
-                cargarEstadisticas();
+            
+            // --- CONTROL DE REFRESCAMIENTO DEPENDIENDO DEL ROL ---
+            const datosSesion = sessionStorage.getItem('usuario');
+            const usuarioLogueado = datosSesion ? JSON.parse(datosSesion) : null;
+
+            if (usuarioLogueado && usuarioLogueado.nombre_rol === 'Administrador') {
+                // Flujo Original de recarga para el Administrador
+                await cargarTablaRegistroBombonas(); 
+                await cargarPersonasParaBuscadorBombonas(); 
+                cargarEstadisticasCalles();
+                cargarEstadisticasVentasCalles();
+                if (typeof cargarEstadisticas === 'function') {
+                    cargarEstadisticas();
+                }
+            } else {
+                // Flujo Limpio de recarga para el Secretario
+                await cargarTablaRegistroBombonasSecretario(); // Su nueva tabla sin pago
+                if (typeof cargarPersonasParaBuscadorBombonasSecretario === 'function') {
+                    await cargarPersonasParaBuscadorBombonasSecretario(); // Su buscador por calle
+                }
+                if (typeof cargarEstadisticasVentasCalles === 'function') {
+                    cargarEstadisticasVentasCalles(); // Si el dashboard del secretario usa estadísticas
+                }
             }
+            // -----------------------------------------------------
+
             document.getElementById('seccion-cantidades').style.display = 'none';
             mostrarSeccion('registro-bombonas'); 
         } else {
@@ -695,3 +754,262 @@ document.getElementById("form-editar-persona").addEventListener("submit", async 
         alert("Error de red al intentar conectar con el servidor");
     }
 });
+
+async function cargarEstadisticasVentaMiCalle() {
+    const contenedor = document.getElementById('grid-calles-compras-usuario');
+    if (!contenedor) return; // Si no existe el contenedor en la sección actual, cancela para evitar errores.
+
+    let cedula = null;
+
+    try {
+        // 1. Intentamos recuperar los datos directamente del almacenamiento de la sesión activa
+        const sesionUsuario = sessionStorage.getItem('usuario');
+        if (sesionUsuario) {
+            const usuarioObj = JSON.parse(sesionUsuario);
+            cedula = usuarioObj.cedula;
+        }
+    } catch (e) {
+        console.error("Error leyendo el objeto usuario de sessionStorage:", e);
+    }
+
+    // 2. Si por algún motivo no está en la sesión, la tomamos del elemento HTML como plan de respaldo
+    if (!cedula || cedula === "Cargando...") {
+        const elementoCedula = document.getElementById('user-cedula');
+        cedula = elementoCedula ? elementoCedula.textContent.trim() : null;
+    }
+
+    // Si aún no hay cédula disponible, abortamos la ejecución
+    if (!cedula || cedula === "Cargando..." || cedula === "null" || cedula === "undefined") {
+        console.warn("⚠️ No se pudo obtener la cédula del usuario activo para las estadísticas.");
+        return;
+    }
+
+    console.log("📊 Consultando estadísticas de calle para la cédula:", cedula);
+
+    try {
+        const response = await fetch(`/api/usuario/ventas-calle?cedula=${cedula}`);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            contenedor.innerHTML = `<p style="color: var(--danger); padding: 1rem; font-weight: 500;">${errorData.error}</p>`;
+            return;
+        }
+
+        const resultado = await response.json();
+        const calle = resultado.calle;
+        const datos = resultado.datos;
+
+        // 3. Renderizado final utilizando las clases estructurales de tus tarjetas para que se adapte al diseño
+        contenedor.innerHTML = `
+            <div class="stat-card-calle" style="max-width: 450px; margin: 1.5rem auto; width: 100%; background: #ffffff; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid rgba(0, 0, 0, 0.05);">
+                <div class="calle-header" style="background: linear-gradient(135deg, #159895 0%, #104358 100%); padding: 1.2rem; text-align: center; color: white;">
+                    <h3 style="margin: 0; font-size: 1.2rem; font-weight: 600;"><i class="fas fa-map-marker-alt"></i> Mi Comunidad: ${calle}</h3>
+                </div>
+                <div class="calle-stats" style="padding: 1.5rem;">
+                    <div class="stat-row" style="display: flex; justify-content: space-between; padding: 0.8rem 0; border-bottom: 1px solid #f0f4f8;">
+                        <span><i class="fas fa-shopping-cart" style="color: #1a5f7a; width: 20px;"></i> Total Ventas</span>
+                        <strong>${datos.total_ventas || 0}</strong>
+                    </div>
+                    <div class="stat-row" style="display: flex; justify-content: space-between; padding: 0.8rem 0; border-bottom: 1px solid #f0f4f8;">
+                        <span><i class="fas fa-check-circle" style="color: #2ed573; width: 20px;"></i> Pagadas</span>
+                        <strong style="color: #2ed573;">${datos.pagadas || 0}</strong>
+                    </div>
+                    <div class="stat-row" style="display: flex; justify-content: space-between; padding: 0.8rem 0; border-bottom: 1px solid #f0f4f8;">
+                        <span><i class="fas fa-clock" style="color: #f39c12; width: 20px;"></i> Pendientes</span>
+                        <strong style="color: #f39c12;">${datos.pendientes || 0}</strong>
+                    </div>
+                    <div class="stat-row" style="display: flex; justify-content: space-between; padding: 1rem 0 0 0; margin-top: 0.5rem; border-top: 2px dashed #f0f4f8;">
+                        <span style="font-weight: 600; color: #1a5f7a;"><i class="fas fa-money-bill-wave" style="width: 20px;"></i> Total Recaudado</span>
+                        <strong style="font-size: 1.25rem; color: #1a5f7a;">${datos.total_dinero ? parseFloat(datos.total_dinero).toFixed(2) : '0.00'} $</strong>
+                    </div>
+                </div>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error("Error en la conexión frontend-backend:", error);
+        contenedor.innerHTML = '<p style="color: var(--danger); padding: 1rem;">Error de conexión al procesar las estadísticas de la calle.</p>';
+    }
+}
+// NUEVA FUNCIÓN EXCLUSIVA PARA EL BUSCADOR DEL SECRETARIO
+async function cargarPersonasParaBuscadorBombonasSecretario() {
+    try {
+        // 1. Obtenemos los datos del Secretario desde el sessionStorage
+        const datosSesion = sessionStorage.getItem('usuario');
+        if (!datosSesion) return;
+
+        const usuarioLogueado = JSON.parse(datosSesion);
+        const cedulaSecretario = usuarioLogueado.cedula;
+
+        if (!cedulaSecretario) {
+            console.error("No se encontró la cédula del secretario logueado.");
+            return;
+        }
+
+        // 2. Hacemos el fetch a la nueva ruta enviando la cédula
+        const response = await fetch(`/api/secretario/personas-buscador?cedulaUsuario=${cedulaSecretario}`);
+        
+        if (!response.ok) {
+            throw new Error("Error en la respuesta del servidor");
+        }
+
+        // 3. Guardamos los resultados filtrados en la variable global que ya usa tu buscador
+        listaPersonasBombona = await response.json();
+        console.log("Habitantes de la calle cargados para el buscador:", listaPersonasBombona.length);
+
+    } catch (error) {
+        console.error("Error al cargar personas del secretario para el buscador:", error);
+    }
+}
+
+async function cargarTablaRegistroBombonasSecretario() {
+    const tbody = document.getElementById('tabla-registro-bombonas');
+    if (!tbody) {
+        console.error("❌ No se encontró el elemento #tabla-registro-bombonas en el HTML.");
+        return;
+    }
+
+    try {
+        const datosSesion = sessionStorage.getItem('usuario');
+        if (!datosSesion) return;
+
+        const usuarioLogueado = JSON.parse(datosSesion);
+        const cedulaSecretario = usuarioLogueado.cedula;
+
+        // Petición al endpoint del servidor
+        const response = await fetch(`/api/secretario/registro-bombonas?cedulaUsuario=${cedulaSecretario}`);
+        const registros = await response.json();
+
+        tbody.innerHTML = '';
+
+        if (registros.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--text-light); padding: 1rem;">No hay bombonas asignadas en su calle todavía.</td></tr>';
+            return;
+        }
+
+        registros.forEach(reg => {
+            const tr = document.createElement('tr');
+            
+            // Renderizamos las filas usando los nombres exactos que vienen de tu servidor
+            tr.innerHTML = `
+                <td>${reg.cedula || reg.cedula_persona}</td>
+                <td>${reg.nombre}</td>
+                <td>${reg.apellido}</td>
+                <td style="text-align:center;">${reg.sexo || '-'}</td>
+                <td style="text-align:center;">${reg.edad || '-'}</td>
+                <td>${reg.celular || reg.telefono || '-'}</td>
+                
+                <td style="text-align:center;">
+                    <input type="number" min="0" value="${reg.bombonas_pequenas || 0}" id="input-peq-${reg.id_registro}" style="width: 50px; text-align: center; border: 1px solid #ccc; border-radius: 4px; padding: 2px; font-weight: 600;">
+                </td>
+                <td style="text-align:center;">
+                    <input type="number" min="0" value="${reg.bombonas_medianas || 0}" id="input-med-${reg.id_registro}" style="width: 50px; text-align: center; border: 1px solid #ccc; border-radius: 4px; padding: 2px; font-weight: 600;">
+                </td>
+                <td style="text-align:center;">
+                    <input type="number" min="0" value="${reg.bombonas_grandes || 0}" id="input-gra-${reg.id_registro}" style="width: 50px; text-align: center; border: 1px solid #ccc; border-radius: 4px; padding: 2px; font-weight: 600;">
+                </td>
+                
+                <td style="text-align:center;">
+                    <div style="display: flex; gap: 12px; justify-content: center; align-items: center;">
+                        <button onclick="guardarCambiosDirectosSecretario(${reg.id_registro})" title="Guardar Cambios" style="background: none; border: none; font-size: 1.3rem; cursor: pointer;">
+                            ☑️
+                        </button>
+                        <button onclick="eliminarAsignacionCompleta('[${reg.id_registro}]')" title="Eliminar Asignación" style="background: none; border: none; font-size: 1.3rem; cursor: pointer;">
+                            🗑️
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+    } catch (error) {
+        console.error("❌ Error al cargar la tabla de bombonas del secretario:", error);
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--danger); padding: 1rem;">Error al cargar los datos del sector.</td></tr>';
+    }
+}
+
+async function guardarCambiosDirectosSecretario(idRegistro) {
+    const peq = parseInt(document.getElementById(`input-peq-${idRegistro}`).value) || 0;
+    const med = parseInt(document.getElementById(`input-med-${idRegistro}`).value) || 0;
+    const gra = parseInt(document.getElementById(`input-gra-${idRegistro}`).value) || 0;
+
+    try {
+        // Enviamos la actualización al backend
+        const response = await fetch('/bombonas/actualizar-cantidades', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: idRegistro,
+                tamano_pequena: peq,
+                tamano_mediana: med,
+                tamano_grande: gra
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert("¡Cambios guardados con éxito!");
+            await cargarTablaRegistroBombonasSecretario(); // Recargamos la tabla limpia
+        } else {
+            alert("Error: " + (result.error || "No se pudieron guardar los cambios"));
+        }
+    } catch (error) {
+        console.error("Error al actualizar cantidades:", error);
+        alert("Error de conexión con el servidor.");
+    }
+}
+// NUEVA FUNCIÓN: Se ejecuta al presionar el emoji de la papelera 🗑️
+async function eliminarAsignacionCompleta(idsArrayString) {
+    if (!confirm("¿Está seguro de que desea eliminar esta asignación de bombonas?")) return;
+
+    try {
+        const ids = JSON.parse(idsArrayString);
+        
+        // Iteramos por los IDs asociados a este habitante para eliminarlos uno por uno de forma limpia
+        for (const id of ids) {
+            await fetch(`/api/registro-bombonas/${id}`, { method: 'DELETE' });
+        }
+
+        alert("Asignación eliminada correctamente.");
+        await cargarTablaRegistroBombonasSecretario(); // Recargamos la tabla
+        if (typeof cargarPersonasParaBuscadorBombonasSecretario === 'function') {
+            await cargarPersonasParaBuscadorBombonasSecretario(); // Reaparece en el buscador superior
+        }
+    } catch (error) {
+        console.error("Error al eliminar la asignación:", error);
+        alert("Ocurrió un detalle al intentar eliminar.");
+    }
+}
+async function eliminarAsignacionCompleta(idsArrayString) {
+    if (!confirm("¿Está seguro de que desea eliminar esta asignación de bombonas?")) return;
+
+    try {
+        const ids = JSON.parse(idsArrayString);
+        let todoBien = true;
+        
+        // Eliminamos de la BD
+        for (const id of ids) {
+            const response = await fetch(`/api/registro-bombonas/${id}`, { 
+                method: 'DELETE' 
+            });
+
+            if (!response.ok) {
+                todoBien = false;
+            }
+        }
+
+        if (todoBien) {
+            alert("Asignación eliminada correctamente.");
+            // Recargamos la tabla del secretario para que se actualice al instante en pantalla
+            await cargarTablaRegistroBombonasSecretario(); 
+        } else {
+            alert("⚠️ El servidor no pudo procesar la eliminación de forma completa.");
+        }
+
+    } catch (error) {
+        console.error("Error al eliminar la asignación:", error);
+        alert("Error de conexión al intentar eliminar el registro.");
+    }
+}
