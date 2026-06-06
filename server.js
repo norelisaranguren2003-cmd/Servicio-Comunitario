@@ -162,7 +162,7 @@ app.post('/personas', (req, res) => {
                 console.error('Error al crear persona:', err);
                 return res.status(500).json({ error: 'Error al crear persona' });
             }
-            res.json({ message: 'Persona creada exitosamente', id_persona: result.insertId });
+            res.json({ message: 'Usuario registrado correctamente en el sistema.', id_persona: result.insertId });
         }
     );
 });
@@ -444,12 +444,25 @@ app.post('/bombonas/comprar', (req, res) => {
             return res.status(400).json({ error: `Solo tiene ${msg} de tamaño 43kg.` });
         }
 
-        // 3. Inserción del pago
-        const queryPago = `INSERT INTO pagos_bombonas (id_registro, monto_pagado, metodo_pago, cant_10kg, cant_18kg, cant_27kg, cant_43kg, referencia_texto, referencia_foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-        
-        db.query(queryPago, [id_registro, monto, metodo, qty10, qty18, qty27, qty43, referencia_texto || null, referencia_foto || null], (errPago) => {
-            if (errPago) return res.status(500).json({ error: "Error al registrar el pago: " + errPago.message });
-            res.json({ message: "¡Compra procesada con éxito!" });
+        // 3. Verificar si inicia un nuevo lote de ventas (sin compras en los últimos 15 días)
+        const periodoLoteDias = 15;
+        const queryLote = `SELECT COUNT(*) as total FROM pagos_bombonas WHERE fecha_pago > DATE_SUB(NOW(), INTERVAL ? DAY)`;
+
+        db.query(queryLote, [periodoLoteDias], (errLote, loteResults) => {
+            if (errLote) return res.status(500).json({ error: "Error al verificar lote de ventas" });
+
+            const esNuevoLote = (loteResults[0].total || 0) === 0;
+
+            const queryPago = `INSERT INTO pagos_bombonas (id_registro, monto_pagado, metodo_pago, cant_10kg, cant_18kg, cant_27kg, cant_43kg, referencia_texto, referencia_foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+            db.query(queryPago, [id_registro, monto, metodo, qty10, qty18, qty27, qty43, referencia_texto || null, referencia_foto || null], (errPago) => {
+                if (errPago) return res.status(500).json({ error: "Error al registrar el pago: " + errPago.message });
+                res.json({
+                    message: "¡Compra procesada con éxito!",
+                    actualizar_estadisticas: esNuevoLote,
+                    periodo_lote_dias: periodoLoteDias
+                });
+            });
         });
     });
 });
@@ -525,9 +538,10 @@ app.get('/bombonas/estadisticas-calles', (req, res) => {
     });
 });
 
-// RUTA PARA OBTENER ESTADÍSTICAS DE VENTAS POR CALLE (Con soporte para filtrar una sola calle y pesos en kg)
+// RUTA PARA OBTENER ESTADÍSTICAS DE VENTAS POR CALLE (últimos 15 días, con soporte para filtrar una sola calle)
 app.get('/bombonas/estadisticas-ventas-calles', (req, res) => {
     const { calle } = req.query;
+    const periodoDias = 15;
     let query = `
         SELECT 
             p.calle,
@@ -539,10 +553,11 @@ app.get('/bombonas/estadisticas-ventas-calles', (req, res) => {
         FROM pagos_bombonas pb
         JOIN registro_bombonas rb ON pb.id_registro = rb.id_registro
         JOIN personas p ON rb.id_persona = p.id_persona
+        WHERE pb.fecha_pago > DATE_SUB(NOW(), INTERVAL ? DAY)
     `;
-    const params = [];
+    const params = [periodoDias];
     if (calle && calle !== 'null' && calle !== 'undefined') {
-        query += ` WHERE p.calle = ?`;
+        query += ` AND p.calle = ?`;
         params.push(calle);
     }
 
@@ -600,7 +615,11 @@ app.get('/bombonas/estadisticas-ventas-calles', (req, res) => {
         });
 
         const estadisticasCompletas = calles.map(c => statsMap[c]);
-        res.json({ estadisticas: estadisticasCompletas });
+        res.json({
+            estadisticas: estadisticasCompletas,
+            periodo_dias: periodoDias,
+            actualizado: new Date().toISOString()
+        });
     });
 });
 

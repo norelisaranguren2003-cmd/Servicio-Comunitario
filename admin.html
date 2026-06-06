@@ -10,6 +10,8 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   </head>
 
   <body>
@@ -574,8 +576,13 @@
 
         <!-- ESTADÍSTICAS DE VENTAS POR CALLE -->
         <div class="table-container mt-2" id="estadisticas-ventas-container">
-          <h3 style="color: var(--primary); margin-bottom: 1.5rem;"><i class="fas fa-chart-line">
-          </i> Estadísticas de Ventas por Calle</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <h3 style="color: var(--primary); margin: 0;"><i class="fas fa-chart-line"></i> Estadísticas de Ventas por Calle</h3>
+            <button class="btn-download-pdf" onclick="descargarPdfEstadisticasVentas()">
+              <i class="fas fa-file-pdf"></i> Descargar PDF
+            </button>
+          </div>
+          <p id="estadisticas-ventas-info" class="stats-period-note"></p>
           <div class="stats-grid-calles" id="estadisticas-ventas-grid">
             <!-- Se llenará dinámicamente -->
           </div>
@@ -587,9 +594,14 @@
           <h2>
             <i class="fas fa-chart-bar" style="margin-right: 10px"></i> Estadísticas por Calle
           </h2>
-          <button class="btn-back" onclick="mostrarSeccion('dashboard')">
-            <i class="fas fa-arrow-left"></i> Volver
-          </button>
+          <div class="section-header-actions">
+            <button class="btn-download-pdf" onclick="descargarPdfEstadisticasCalles()">
+              <i class="fas fa-file-pdf"></i> Descargar PDF
+            </button>
+            <button class="btn-back" onclick="mostrarSeccion('dashboard')">
+              <i class="fas fa-arrow-left"></i> Volver
+            </button>
+          </div>
         </div>
 
         <div class="stats-grid-calles" id="estadisticas-grid">
@@ -688,6 +700,7 @@
         </div>
     </div>
 </div>
+    <script src="scripts.js"></script>
     <script>
       
       const usuario = JSON.parse(sessionStorage.getItem("usuario"));
@@ -836,11 +849,14 @@
             const result = await response.json();
 
             if (response.ok) {
-              alertBox.textContent = "¡Persona registrada exitosamente!";
-              alertBox.className = "alert alert-success";
-              alertBox.style.display = "block";
+              alertBox.style.display = "none";
+              mostrarMensajeExito(
+                "¡Registro confirmado!",
+                result.message || "El usuario se registró correctamente en el sistema.",
+                "fa-circle-check"
+              );
               e.target.reset();
-              cargarEstadisticas(); // Update dashboard
+              cargarEstadisticas();
             } else {
               alertBox.textContent = result.error || "Error al guardar";
               alertBox.className = "alert alert-error";
@@ -895,9 +911,15 @@
             const result = await response.json();
 
             if (response.ok) {
-              alertBox.textContent = "¡Usuario creado exitosamente!";
-              alertBox.className = "alert alert-success";
-              alertBox.style.display = "block";
+              alertBox.style.display = "none";
+              const esManzanera = formData.id_rol === "2";
+              mostrarMensajeExito(
+                esManzanera ? "¡Manzanera registrada!" : "¡Administrador registrado!",
+                esManzanera
+                  ? "La manzanera ha sido registrada correctamente y ya puede acceder al sistema."
+                  : "El administrador ha sido registrado correctamente y ya puede acceder al sistema.",
+                esManzanera ? "fa-user-tie" : "fa-user-shield"
+              );
               e.target.reset();
               cargarEstadisticas();
             } else {
@@ -916,7 +938,6 @@
         cargarEstadisticas();
       };
     </script>
-  
-    <script src="scripts.js"></script>
+    <script src="pdf-export.js"></script>
   </body>
 </html>

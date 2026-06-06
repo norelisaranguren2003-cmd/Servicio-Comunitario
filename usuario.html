@@ -7,6 +7,8 @@
     <title>Panel de Trabajo | Gestión Social</title>
     <link rel="stylesheet" href="admin.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 
 <body>
@@ -300,7 +302,13 @@
 
             <!-- ESTADÍSTICAS DE VENTAS POR CALLE -->
             <div class="table-container mt-2" id="estadisticas-ventas-container">
-                <h3 style="color: var(--primary); margin-bottom: 1.5rem;"><i class="fas fa-chart-line"></i> Estadísticas de Ventas por Calle</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                    <h3 style="color: var(--primary); margin: 0;"><i class="fas fa-chart-line"></i> Estadísticas de Ventas por Calle</h3>
+                    <button class="btn-download-pdf" onclick="descargarPdfEstadisticasVentasMiCalle()">
+                        <i class="fas fa-file-pdf"></i> Descargar PDF
+                    </button>
+                </div>
+                <p id="estadisticas-ventas-info" class="stats-period-note"></p>
                 <div class="stats-grid-calles" id="estadisticas-ventas-grid">
                     <!-- Se llenará dinámicamente -->
                 </div>
@@ -348,7 +356,7 @@
                 if (id === 'gestionar_bombonas') {
                     cargarTablaParaVentas();
                     cargarHistorialVentas();
-                    cargarEstadisticasVentasCalles();
+                    actualizarEstadisticasVentasPorCalle();
                     const formCompra = document.getElementById('formulario-compra');
                     if(formCompra) formCompra.style.display = 'none';
                 }
@@ -388,6 +396,7 @@
 
     </script>
     <script src="scripts.js"></script>
+    <script src="pdf-export.js"></script>
 </body>
 
 </html>

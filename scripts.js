@@ -2,6 +2,26 @@
 let listaPersonasBombona = []; 
 let personaSeleccionada = null; 
 
+function mostrarMensajeExito(titulo, mensaje, icono = 'fa-circle-check') {
+    const overlay = document.createElement('div');
+    overlay.className = 'toast-exito-overlay';
+    overlay.innerHTML = `
+        <div class="toast-exito">
+            <div class="toast-exito-icon"><i class="fas ${icono}"></i></div>
+            <h3>${titulo}</h3>
+            <p>${mensaje}</p>
+            <button type="button" class="btn-submit toast-exito-btn">Aceptar</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const cerrar = () => overlay.remove();
+    overlay.querySelector('.toast-exito-btn').onclick = cerrar;
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) cerrar();
+    });
+}
+
 // 1. FUNCIÓN PRINCIPAL DE NAVEGACIÓN
 function mostrarSeccion(id, element) {
     // Ocultar todas las secciones
@@ -41,30 +61,7 @@ function mostrarSeccion(id, element) {
         if (id === 'gestionar_bombonas') {
             cargarTablaParaVentas();
             cargarHistorialVentas();
-            
-            // Evaluamos de forma segura el rol del usuario conectado desde la sesión
-            try {
-                const datosSesion = sessionStorage.getItem('usuario');
-                const usuarioLogueado = datosSesion ? JSON.parse(datosSesion) : null;
-                
-                // Si el id_rol es 2 (usuario/secretaría regular)
-                if (usuarioLogueado && usuarioLogueado.id_rol === 2) {
-                    console.log("👤 Modo Usuario: Cargando estadísticas de 'Mi Calle' en Gestión de Bombonas");
-                    cargarEstadisticasVentaMiCalle();
-                } else {
-                    // Si es administrador (id_rol = 1) carga el panel global de todas las calles
-                    console.log("👑 Modo Admin: Cargando estadísticas globales de todas las calles");
-                    cargarEstadisticasVentasCalles();
-                }
-            } catch (error) {
-                console.error("Error al identificar el rol en la sección gestión de bombonas:", error);
-                // Plan de respaldo
-                if (document.getElementById('grid-calles-compras-usuario')) {
-                    cargarEstadisticasVentaMiCalle();
-                } else {
-                    cargarEstadisticasVentasCalles();
-                }
-            }
+            actualizarEstadisticasVentasPorCalle();
 
             const formCompra = document.getElementById('formulario-compra');
             if(formCompra) formCompra.style.display = 'none';
@@ -177,17 +174,13 @@ async function guardarNuevoRegistroBombona() {
         });
 
         if (response.ok) {
-            alert('¡Inventario registrado con éxito!');
+            mostrarMensajeExito(
+                "¡Bombonas registradas!",
+                "El inventario de cilindros se asignó correctamente al ciudadano.",
+                "fa-gas-pump"
+            );
             await cargarTablaRegistroBombonas(); 
             await cargarPersonasParaBuscadorBombonas(); 
-            cargarEstadisticasCalles();
-            const datosSesion = sessionStorage.getItem('usuario');
-            const usuarioLogueado = datosSesion ? JSON.parse(datosSesion) : null;
-            if (usuarioLogueado && usuarioLogueado.id_rol === 2) {
-                cargarEstadisticasVentaMiCalle();
-            } else {
-                cargarEstadisticasVentasCalles();
-            }
             if (typeof cargarEstadisticas === 'function') {
                 cargarEstadisticas();
             }
@@ -272,14 +265,6 @@ async function actualizarRegistro(id) {
     
     if (res.ok) {
         alert("¡Cambio guardado!");
-        cargarEstadisticasCalles();
-        const datosSesion = sessionStorage.getItem('usuario');
-        const usuarioLogueado = datosSesion ? JSON.parse(datosSesion) : null;
-        if (usuarioLogueado && usuarioLogueado.id_rol === 2) {
-            cargarEstadisticasVentaMiCalle();
-        } else {
-            cargarEstadisticasVentasCalles();
-        }
         if (typeof cargarEstadisticas === 'function') {
             cargarEstadisticas();
         }
@@ -295,14 +280,6 @@ async function eliminarRegistro(id) {
     const res = await fetch(`/bombonas/eliminar/${id}`, { method: 'DELETE' });
     if (res.ok) {
         alert("Registro eliminado");
-        cargarEstadisticasCalles();
-        const datosSesion = sessionStorage.getItem('usuario');
-        const usuarioLogueado = datosSesion ? JSON.parse(datosSesion) : null;
-        if (usuarioLogueado && usuarioLogueado.id_rol === 2) {
-            cargarEstadisticasVentaMiCalle();
-        } else {
-            cargarEstadisticasVentasCalles();
-        }
         if (typeof cargarEstadisticas === 'function') {
             cargarEstadisticas();
         }
@@ -424,7 +401,11 @@ async function validarYProcesarVenta() {
         const resultado = await response.json();
 
         if (response.ok) {
-            alert("✅ " + resultado.message);
+            mostrarMensajeExito(
+                "¡Compra confirmada!",
+                resultado.message || "La venta de gas se procesó correctamente.",
+                "fa-circle-check"
+            );
 
             document.getElementById('formulario-compra').style.display = 'none';
             document.getElementById('v-10kg').value = 0;
@@ -437,15 +418,9 @@ async function validarYProcesarVenta() {
 
             cargarTablaParaVentas();
             cargarHistorialVentas();
-            
-            const datosSesion = sessionStorage.getItem('usuario');
-            const usuarioLogueado = datosSesion ? JSON.parse(datosSesion) : null;
-            if (usuarioLogueado && usuarioLogueado.id_rol === 2) {
-                cargarEstadisticasVentaMiCalle();
-            } else {
-                cargarEstadisticasVentasCalles();
+            if (resultado.actualizar_estadisticas) {
+                actualizarEstadisticasVentasPorCalle();
             }
-            cargarEstadisticasCalles();
             if (typeof cargarEstadisticas === 'function') {
                 cargarEstadisticas();
             }
@@ -578,6 +553,62 @@ async function cargarEstadisticasCalles() {
     }
 }
 
+function actualizarEstadisticasVentasPorCalle() {
+    const datosSesion = sessionStorage.getItem('usuario');
+    const usuarioLogueado = datosSesion ? JSON.parse(datosSesion) : null;
+    if (usuarioLogueado && usuarioLogueado.id_rol === 2) {
+        cargarEstadisticasVentaMiCalle();
+    } else {
+        cargarEstadisticasVentasCalles();
+    }
+}
+
+function mostrarInfoEstadisticasVentas(data) {
+    const infoEl = document.getElementById('estadisticas-ventas-info');
+    if (!infoEl || !data.actualizado) return;
+    const fecha = new Date(data.actualizado).toLocaleString('es-VE');
+    infoEl.textContent = `Ventas del lote actual (últimos ${data.periodo_dias || 15} días). Se actualiza al iniciar un nuevo lote, no en compras seguidas. Última actualización: ${fecha}`;
+}
+
+function renderTarjetasEstadisticasVentas(estadisticas, grid) {
+    estadisticas.forEach(est => {
+        const card = document.createElement('div');
+        card.className = 'stat-card-calle';
+        card.innerHTML = `
+            <div class="calle-header" style="background: linear-gradient(135deg, #104358 0%, #159895 100%);">
+                <h3>${est.calle}</h3>
+            </div>
+            <div class="calle-stats">
+                <div class="stat-row" style="border-bottom: 2px solid rgba(21, 152, 149, 0.2); margin-bottom: 0.5rem; padding-bottom: 0.5rem;">
+                    <span class="stat-label" style="font-weight: bold; color: var(--primary);">Total Bombonas:</span>
+                    <span class="stat-value highlight" style="font-size: 1.1rem; font-weight: bold; color: var(--primary);">${est.total_bombonas || 0}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">10kg:</span>
+                    <span class="stat-value">${est.total_10kg || 0} (${parseFloat(est.monto_10kg || 0).toFixed(2)} Bs.)</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">18kg:</span>
+                    <span class="stat-value">${est.total_18kg || 0} (${parseFloat(est.monto_18kg || 0).toFixed(2)} Bs.)</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">27kg:</span>
+                    <span class="stat-value">${est.total_27kg || 0} (${parseFloat(est.monto_27kg || 0).toFixed(2)} Bs.)</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">43kg:</span>
+                    <span class="stat-value">${est.total_43kg || 0} (${parseFloat(est.monto_43kg || 0).toFixed(2)} Bs.)</span>
+                </div>
+                <div class="stat-row" style="border-top: 2px solid rgba(21, 152, 149, 0.2); margin-top: 0.5rem; padding-top: 0.5rem;">
+                    <span class="stat-label" style="font-weight: bold; color: #104358;">Total Recaudado:</span>
+                    <span class="stat-value highlight" style="font-size: 1.1rem; font-weight: bold; color: #104358;">${parseFloat(est.total_monto || 0).toFixed(2)} Bs.</span>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
 // 14. Cargar estadísticas de ventas por calle (Global)
 async function cargarEstadisticasVentasCalles() {
     try {
@@ -588,48 +619,14 @@ async function cargarEstadisticasVentasCalles() {
 
         if(!grid) return;
         grid.innerHTML = '';
+        mostrarInfoEstadisticasVentas(data);
 
         if (!data.estadisticas || data.estadisticas.length === 0) {
-            grid.innerHTML = '<p style="text-align:center; grid-column: span 4;">No hay datos de ventas por calle</p>';
+            grid.innerHTML = '<p style="text-align:center; grid-column: span 4;">No hay ventas registradas en los últimos 15 días</p>';
             return;
         }
 
-        data.estadisticas.forEach(est => {
-            const card = document.createElement('div');
-            card.className = 'stat-card-calle';
-            card.innerHTML = `
-                <div class="calle-header" style="background: linear-gradient(135deg, #104358 0%, #159895 100%);">
-                    <h3>${est.calle}</h3>
-                </div>
-                <div class="calle-stats">
-                    <div class="stat-row" style="border-bottom: 2px solid rgba(21, 152, 149, 0.2); margin-bottom: 0.5rem; padding-bottom: 0.5rem;">
-                        <span class="stat-label" style="font-weight: bold; color: var(--primary);">Total Bombonas:</span>
-                        <span class="stat-value highlight" style="font-size: 1.1rem; font-weight: bold; color: var(--primary);">${est.total_bombonas || 0}</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">10kg:</span>
-                        <span class="stat-value">${est.total_10kg || 0} (${parseFloat(est.monto_10kg || 0).toFixed(2)} Bs.)</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">18kg:</span>
-                        <span class="stat-value">${est.total_18kg || 0} (${parseFloat(est.monto_18kg || 0).toFixed(2)} Bs.)</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">27kg:</span>
-                        <span class="stat-value">${est.total_27kg || 0} (${parseFloat(est.monto_27kg || 0).toFixed(2)} Bs.)</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">43kg:</span>
-                        <span class="stat-value">${est.total_43kg || 0} (${parseFloat(est.monto_43kg || 0).toFixed(2)} Bs.)</span>
-                    </div>
-                    <div class="stat-row" style="border-top: 2px solid rgba(21, 152, 149, 0.2); margin-top: 0.5rem; padding-top: 0.5rem;">
-                        <span class="stat-label" style="font-weight: bold; color: #104358;">Total Recaudado:</span>
-                        <span class="stat-value highlight" style="font-size: 1.1rem; font-weight: bold; color: #104358;">${parseFloat(est.total_monto || 0).toFixed(2)} Bs.</span>
-                    </div>
-                </div>
-            `;
-            grid.appendChild(card);
-        });
+        renderTarjetasEstadisticasVentas(data.estadisticas, grid);
     } catch (e) {
         console.error("Error al cargar estadísticas de ventas por calle:", e);
     }
@@ -652,48 +649,14 @@ async function cargarEstadisticasVentaMiCalle() {
 
         if(!grid) return;
         grid.innerHTML = '';
+        mostrarInfoEstadisticasVentas(data);
 
         if (!data.estadisticas || data.estadisticas.length === 0) {
-            grid.innerHTML = '<p style="text-align:center; grid-column: span 4;">No hay datos de ventas para tu calle</p>';
+            grid.innerHTML = '<p style="text-align:center; grid-column: span 4;">No hay ventas registradas en los últimos 15 días para tu calle</p>';
             return;
         }
 
-        data.estadisticas.forEach(est => {
-            const card = document.createElement('div');
-            card.className = 'stat-card-calle';
-            card.innerHTML = `
-                <div class="calle-header" style="background: linear-gradient(135deg, #104358 0%, #159895 100%);">
-                    <h3>${est.calle}</h3>
-                </div>
-                <div class="calle-stats">
-                    <div class="stat-row" style="border-bottom: 2px solid rgba(21, 152, 149, 0.2); margin-bottom: 0.5rem; padding-bottom: 0.5rem;">
-                        <span class="stat-label" style="font-weight: bold; color: var(--primary);">Total Bombonas:</span>
-                        <span class="stat-value highlight" style="font-size: 1.1rem; font-weight: bold; color: var(--primary);">${est.total_bombonas || 0}</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">10kg:</span>
-                        <span class="stat-value">${est.total_10kg || 0} (${parseFloat(est.monto_10kg || 0).toFixed(2)} Bs.)</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">18kg:</span>
-                        <span class="stat-value">${est.total_18kg || 0} (${parseFloat(est.monto_18kg || 0).toFixed(2)} Bs.)</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">27kg:</span>
-                        <span class="stat-value">${est.total_27kg || 0} (${parseFloat(est.monto_27kg || 0).toFixed(2)} Bs.)</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">43kg:</span>
-                        <span class="stat-value">${est.total_43kg || 0} (${parseFloat(est.monto_43kg || 0).toFixed(2)} Bs.)</span>
-                    </div>
-                    <div class="stat-row" style="border-top: 2px solid rgba(21, 152, 149, 0.2); margin-top: 0.5rem; padding-top: 0.5rem;">
-                        <span class="stat-label" style="font-weight: bold; color: #104358;">Total Recaudado:</span>
-                        <span class="stat-value highlight" style="font-size: 1.1rem; font-weight: bold; color: #104358;">${parseFloat(est.total_monto || 0).toFixed(2)} Bs.</span>
-                    </div>
-                </div>
-            `;
-            grid.appendChild(card);
-        });
+        renderTarjetasEstadisticasVentas(data.estadisticas, grid);
     } catch (e) {
         console.error("Error al cargar estadísticas de ventas de Mi Calle:", e);
     }
