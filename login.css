@@ -132,3 +132,49 @@ body {
     display: none;
 }
 
+/* ═══ RESPONSIVE LOGIN ═══ */
+
+@media (max-width: 520px) {
+    .login_contenedor {
+        padding: 40px 30px;
+        margin: 1rem;
+    }
+    .login-t h2 {
+        font-size: 2rem;
+    }
+    .login-t p {
+        font-size: 0.95rem;
+        margin-bottom: 30px;
+    }
+    .role-selector label {
+        padding: 12px;
+        font-size: 1rem;
+    }
+    .cuadros-texto input {
+        padding: 13px 13px 13px 42px;
+        font-size: 0.95rem;
+    }
+    .login-btn {
+        padding: 13px;
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 375px) {
+    .login_contenedor {
+        padding: 30px 20px;
+        border-radius: 18px;
+    }
+    .login-t h2 {
+        font-size: 1.7rem;
+    }
+    .login-t p {
+        font-size: 0.85rem;
+        margin-bottom: 25px;
+    }
+    .role-selector label {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+}
+

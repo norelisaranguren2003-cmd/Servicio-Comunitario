@@ -2,15 +2,55 @@ const express = require('express');
 const mysql = require('mysql2');
 const path = require('path');
 const cors = require('cors');
+const crypto = require('crypto');
+
+function hashPassword(password) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+    return salt + ':' + hash;
+}
+
+function verifyPassword(password, stored) {
+    if (!stored || !stored.includes(':')) return password === stored;
+    const [salt, hash] = stored.split(':');
+    const hashToVerify = crypto.scryptSync(password, salt, 64).toString('hex');
+    return hash === hashToVerify;
+}
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
+
+// Bloquear archivos sensibles
+app.use((req, res, next) => {
+    const blocked = ['server.js', 'package.json', 'package-lock.json', 'migrate.js', 'query', '.env'];
+    if (blocked.includes(path.basename(req.path))) {
+        return res.status(404).json({ error: 'Not found' });
+    }
+    next();
+});
+
 app.use(express.static(path.join(__dirname)));
+
+// Rate limiting para login
+const loginAttempts = {};
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
+const RATE_LIMIT_MAX = 10;
+function rateLimitLogin(req, res, next) {
+    const ip = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+    if (!loginAttempts[ip]) loginAttempts[ip] = [];
+    loginAttempts[ip] = loginAttempts[ip].filter(t => now - t < RATE_LIMIT_WINDOW);
+    if (loginAttempts[ip].length >= RATE_LIMIT_MAX) {
+        return res.status(429).json({ error: 'Demasiados intentos. Espere 15 minutos.' });
+    }
+    loginAttempts[ip].push(now);
+    next();
+}
 
 // Log de todas las peticiones POST
 app.use((req, res, next) => {
@@ -23,17 +63,32 @@ app.use((req, res, next) => {
 });
 
 // Conexión a MySQL
-const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'servicio_comunitario'
-});
+let dbConfig;
+if (process.env.DATABASE_URL) {
+    const url = new URL(process.env.DATABASE_URL);
+    dbConfig = {
+        host: url.hostname,
+        port: url.port || 3306,
+        user: decodeURIComponent(url.username),
+        password: decodeURIComponent(url.password),
+        database: url.pathname.replace('/', ''),
+        ssl: url.searchParams.get('ssl') ? { rejectUnauthorized: true } : undefined
+    };
+} else {
+    dbConfig = {
+        host: 'localhost',
+        user: 'root',
+        password: '',
+        database: 'servicio_comunitario'
+    };
+}
+
+const db = mysql.createConnection(dbConfig);
 
 db.connect(err => {
     if (err) {
         console.error('❌ Error al conectar a MySQL:', err.message);
-        console.log('Verifica que XAMPP esté corriendo');
+        console.log('Verifica que la base de datos esté accesible');
     } else {
         console.log('✅ Conectado a MySQL');
     }
@@ -45,7 +100,7 @@ app.get('/', (req, res) => {
 });
 
 // LOGIN - Acepta usuario o cédula
-app.post('/login', (req, res) => {
+app.post('/login', rateLimitLogin, (req, res) => {
     console.log('--- Intento de Login ---');
     console.log('Body:', req.body);
 
@@ -64,17 +119,18 @@ app.post('/login', (req, res) => {
 
     console.log('Buscando usuario:', usuario);
 
-    // Buscar por usuario_login O por cédula (agregando calle para guardar en sesión)
+    // Buscar por usuario_login O por cédula
     const query = `
         SELECT u.id_usuario, u.usuario_login, u.id_rol, r.nombre_rol,
-               p.id_persona, p.cedula, p.nombre, p.apellido, p.edad, p.celular, p.calle
+               p.id_persona, p.cedula, p.nombre, p.apellido, p.edad, p.celular, p.calle,
+               u.password_hash
         FROM usuarios u
         LEFT JOIN personas p ON u.id_persona = p.id_persona
         LEFT JOIN roles r ON u.id_rol = r.id_rol
-        WHERE (u.usuario_login = ? OR p.cedula = ?) AND u.password_hash = ?
+        WHERE (u.usuario_login = ? OR p.cedula = ?)
     `;
 
-    db.query(query, [usuario, usuario, password], (err, results) => {
+    db.query(query, [usuario, usuario], (err, results) => {
         if (err) {
             console.error('Error en login:', err);
             return res.status(500).json({ error: 'Error al verificar credenciales' });
@@ -85,6 +141,16 @@ app.post('/login', (req, res) => {
         }
 
         const user = results[0];
+
+        if (!verifyPassword(password, user.password_hash)) {
+            return res.status(401).json({ error: 'Usuario/cédula o contraseña incorrectos' });
+        }
+
+        // Migrar contraseña en texto plano a hash si es necesario
+        if (!user.password_hash.includes(':')) {
+            const newHash = hashPassword(password);
+            db.query('UPDATE usuarios SET password_hash = ? WHERE id_usuario = ?', [newHash, user.id_usuario]);
+        }
 
         console.log('Usuario encontrado:', user.nombre_rol, 'Rol seleccionado:', role);
 
@@ -144,16 +210,20 @@ app.get('/personas/sin-bombonas', (req, res) => {
 
 // CREAR PERSONA
 app.post('/personas', (req, res) => {
-    const { cedula, nombre, apellido, sexo, edad, id_estado_civil, celular, carga_familiar, calle } = req.body;
+    const { cedula, nombre, apellido, sexo, edad, id_estado_civil, celular, carga_familiar, calle, fecha_registro, estatus } = req.body;
     
     if (!cedula || !nombre || !apellido || !sexo) {
         return res.status(400).json({ error: 'Cédula, nombre, apellido y sexo son requeridos' });
     }
+
+    if (!/^\d{6,10}$/.test(String(cedula).trim())) {
+        return res.status(400).json({ error: 'La cédula debe contener entre 6 y 10 dígitos numéricos.' });
+    }
     
-    const query = `INSERT INTO personas (cedula, nombre, apellido, sexo, edad, id_estado_civil, celular, carga_familiar, calle) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const query = `INSERT INTO personas (cedula, nombre, apellido, sexo, edad, id_estado_civil, celular, carga_familiar, calle, fecha_registro, estatus) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
-    db.query(query, [cedula, nombre, apellido, sexo, edad || null, id_estado_civil || 1, celular || null, carga_familiar || 0, calle || null], 
+    db.query(query, [cedula, nombre, apellido, sexo, edad || null, id_estado_civil || 1, celular || null, carga_familiar || 0, calle || null, fecha_registro || null, estatus || 'Activo'], 
         (err, result) => {
             if (err) {
                 if (err.code === 'ER_DUP_ENTRY') {
@@ -259,12 +329,13 @@ app.put('/usuarios/cambiar-password', (req, res) => {
         if (err) return res.status(500).json({ error: 'Error al verificar contraseña' });
         if (results.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-        if (results[0].password_hash !== password_actual) {
+        if (!verifyPassword(password_actual, results[0].password_hash)) {
             return res.status(401).json({ error: 'Contraseña actual incorrecta' });
         }
 
+        const newHash = hashPassword(password_nueva);
         const queryUpdate = 'UPDATE usuarios SET password_hash = ? WHERE id_usuario = ?';
-        db.query(queryUpdate, [password_nueva, id_usuario], (errUpdate) => {
+        db.query(queryUpdate, [newHash, id_usuario], (errUpdate) => {
             if (errUpdate) return res.status(500).json({ error: 'Error al actualizar contraseña' });
             res.json({ message: 'Contraseña actualizada correctamente' });
         });
@@ -279,10 +350,12 @@ app.post('/usuarios', (req, res) => {
         return res.status(400).json({ error: 'Persona, usuario y contraseña son requeridos' });
     }
 
+    const hashedPassword = hashPassword(password);
+
     const query = `INSERT INTO usuarios (id_persona, id_rol, usuario_login, password_hash) 
                    VALUES (?, ?, ?, ?)`;
 
-    db.query(query, [id_persona, id_rol || 2, usuario_login, password], (err, result) => {
+    db.query(query, [id_persona, id_rol || 2, usuario_login, hashedPassword], (err, result) => {
         if (err) {
             if (err.code === 'ER_DUP_ENTRY') {
                 return res.status(409).json({ error: 'El nombre de usuario ya existe' });
@@ -374,7 +447,7 @@ app.post('/bombonas/registrar', (req, res) => {
     db.query(queryInsert, [id_persona, bombonas_10kg || 0, bombonas_18kg || 0, bombonas_27kg || 0, bombonas_43kg || 0], (errInsert, resultInsert) => {
         if (errInsert) {
             console.error('Error SQL al insertar:', errInsert);
-            return res.status(500).json({ error: 'Error al insertar: ' + errInsert.message });
+            return res.status(500).json({ error: 'Error al registrar las bombonas.' });
         }
         res.json({ message: '¡Inventario registrado con éxito!' });
     });
@@ -410,7 +483,10 @@ app.put('/bombonas/actualizar', (req, res) => {
     const { id_registro, bombonas_10kg, bombonas_18kg, bombonas_27kg, bombonas_43kg } = req.body;
     const query = `UPDATE registro_bombonas SET bombonas_10kg=?, bombonas_18kg=?, bombonas_27kg=?, bombonas_43kg=? WHERE id_registro=?`;
     db.query(query, [bombonas_10kg, bombonas_18kg, bombonas_27kg, bombonas_43kg, id_registro], (err) => {
-        if (err) return res.status(500).send(err);
+        if (err) {
+            console.error('Error al actualizar bombonas:', err);
+            return res.status(500).json({ error: 'Error al actualizar el registro.' });
+        }
         res.json({ status: "ok" });
     });
 });
@@ -419,7 +495,10 @@ app.put('/bombonas/actualizar', (req, res) => {
 app.delete('/bombonas/eliminar/:id', (req, res) => {
     const query = `DELETE FROM registro_bombonas WHERE id_registro = ?`;
     db.query(query, [req.params.id], (err) => {
-        if (err) return res.status(500).send(err);
+        if (err) {
+            console.error('Error al eliminar bombonas:', err);
+            return res.status(500).json({ error: 'Error al eliminar el registro.' });
+        }
         res.json({ status: "ok" });
     });
 });
@@ -475,9 +554,9 @@ app.post('/bombonas/comprar', (req, res) => {
 
         // 3. Verificar si inicia un nuevo lote de ventas (sin compras en los últimos 15 días)
         const periodoLoteDias = 15;
-        const queryLote = `SELECT COUNT(*) as total FROM pagos_bombonas WHERE fecha_pago > DATE_SUB(NOW(), INTERVAL ? DAY)`;
+        const queryLote = `SELECT COUNT(*) as total FROM pagos_bombonas pb JOIN registro_bombonas rb ON pb.id_registro = rb.id_registro WHERE rb.id_persona = ? AND pb.fecha_pago > DATE_SUB(NOW(), INTERVAL ? DAY)`;
 
-        db.query(queryLote, [periodoLoteDias], (errLote, loteResults) => {
+        db.query(queryLote, [id_persona, periodoLoteDias], (errLote, loteResults) => {
             if (errLote) return res.status(500).json({ error: "Error al verificar lote de ventas" });
 
             const esNuevoLote = (loteResults[0].total || 0) === 0;
@@ -485,7 +564,10 @@ app.post('/bombonas/comprar', (req, res) => {
             const queryPago = `INSERT INTO pagos_bombonas (id_registro, monto_pagado, metodo_pago, cant_10kg, cant_18kg, cant_27kg, cant_43kg, referencia_texto, referencia_foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
             db.query(queryPago, [id_registro, monto, metodo, qty10, qty18, qty27, qty43, referencia_texto || null, referencia_foto || null], (errPago) => {
-                if (errPago) return res.status(500).json({ error: "Error al registrar el pago: " + errPago.message });
+                if (errPago) {
+                    console.error('Error SQL al registrar pago:', errPago);
+                    return res.status(500).json({ error: 'Error al registrar el pago.' });
+                }
                 res.json({
                     message: "¡Compra procesada con éxito!",
                     actualizar_estadisticas: esNuevoLote,

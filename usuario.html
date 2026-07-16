@@ -271,7 +271,6 @@
                     <div class="qty-item">
                         <label>Método</label>
                         <select id="v-metodo">
-                            <option value="Efectivo">Efectivo</option>
                             <option value="Pago Móvil">Pago Móvil</option>
                             <option value="Transferencia">Transferencia</option>
                         </select>
@@ -345,45 +344,6 @@
         const avatarUrl = `https://ui-avatars.com/api/?name=${name}+&background=159895&color=fff&size=128`;
         if (document.getElementById('user-avatar-top')) {
             document.getElementById('user-avatar-top').src = avatarUrl;
-        }
-
-        function mostrarSeccion(id, element) {
-            document.querySelectorAll('.section').forEach(s => {
-                s.classList.remove('active');
-                s.style.display = 'none';
-            });
-
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-
-            const seccionActiva = document.getElementById(id);
-            if (seccionActiva) {
-                seccionActiva.classList.add('active');
-                seccionActiva.style.display = 'block';
-
-                if (element) element.classList.add('active');
-
-                // EJECUTAR CARGAS ESPECÍFICAS
-                if (id === 'registro-bombonas') {
-                    personaSeleccionada = null;
-                    const busqueda = document.getElementById('busqueda-persona');
-                    if (busqueda) busqueda.value = '';
-                    cargarPersonasParaBuscadorBombonas();
-                    cargarTablaRegistroBombonas();
-                    cargarEstadisticasCallesMiCalle();
-
-                    const secCant = document.getElementById('seccion-cantidades');
-                    if(secCant) secCant.style.display = 'none';
-                }
-                if (id === 'gestionar_bombonas') {
-                    cargarTablaParaVentas();
-                    cargarHistorialVentas();
-                    actualizarEstadisticasVentasPorCalle();
-                    const formCompra = document.getElementById('formulario-compra');
-                    if(formCompra) formCompra.style.display = 'none';
-                }
-            }
         }
 
         function cerrarSesion() {

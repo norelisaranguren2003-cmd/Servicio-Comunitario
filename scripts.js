@@ -2,6 +2,11 @@
 let listaPersonasBombona = []; 
 let personaSeleccionada = null; 
 
+function escaparHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function mostrarMensajeExito(titulo, mensaje, icono = 'fa-circle-check') {
     const overlay = document.createElement('div');
     overlay.className = 'toast-exito-overlay';
@@ -271,12 +276,12 @@ async function cargarTablaRegistroBombonas() {
             const tr = document.createElement('tr');
             
             tr.innerHTML = `
-                <td>${r.cedula}</td>
-                <td>${r.nombre}</td>
-                <td>${r.apellido}</td>
-                <td>${r.sexo}</td>
-                <td>${r.edad || "-"}</td>
-                <td>${r.celular || "-"}</td>
+                <td>${escaparHtml(r.cedula)}</td>
+                <td>${escaparHtml(r.nombre)}</td>
+                <td>${escaparHtml(r.apellido)}</td>
+                <td>${escaparHtml(r.sexo)}</td>
+                <td>${escaparHtml(r.edad || "-")}</td>
+                <td>${escaparHtml(r.celular || "-")}</td>
                 <!-- Celdas editables por kg -->
                 <td style="text-align: center;">
                     <input type="number" class="edit-input" value="${r.bombonas_10kg}" id="qty10-${r.id_registro}">
@@ -291,8 +296,8 @@ async function cargarTablaRegistroBombonas() {
                     <input type="number" class="edit-input" value="${r.bombonas_43kg}" id="qty43-${r.id_registro}">
                 </td>
                 <td class="acciones">
-                    <button class="btn-update" onclick="actualizarRegistro(${r.id_registro})" title="Guardar cambios">✔️</button>
-                    <button class="btn-delete" onclick="eliminarRegistro(${r.id_registro})" title="Eliminar">🗑️</button>
+                    <button class="btn-update" onclick="actualizarRegistro(${r.id_registro})" title="Guardar cambios">&#10004;&#65039;</button>
+                    <button class="btn-delete" onclick="eliminarRegistro(${r.id_registro})" title="Eliminar">&#128465;&#65039;</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -364,13 +369,14 @@ async function cargarTablaParaVentas() {
             const tr = document.createElement('tr');
             const fechaRef = r.fecha_registro ? new Date(r.fecha_registro).toLocaleDateString() : 'N/A';
 
+            const safeRegistro = JSON.stringify(r).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             tr.innerHTML = `
-                <td>${r.cedula}</td>
-                <td>${r.nombre} ${r.apellido}</td>
-                <td>10kg: ${r.bombonas_10kg} | 18kg: ${r.bombonas_18kg} | 27kg: ${r.bombonas_27kg} | 43kg: ${r.bombonas_43kg}</td>
+                <td>${escaparHtml(r.cedula)}</td>
+                <td>${escaparHtml(r.nombre)} ${escaparHtml(r.apellido)}</td>
+                <td>10kg: ${escaparHtml(r.bombonas_10kg)} | 18kg: ${escaparHtml(r.bombonas_18kg)} | 27kg: ${escaparHtml(r.bombonas_27kg)} | 43kg: ${escaparHtml(r.bombonas_43kg)}</td>
                 <td>${fechaRef}</td>
                 <td>
-                    <button class="btn-select" onclick="seleccionarParaCompra(${JSON.stringify(r).replace(/"/g, '&quot;')})">
+                    <button class="btn-select" onclick="seleccionarParaCompra(JSON.parse(this.dataset.registro))" data-registro='${safeRegistro}'>
                         Seleccionar <i class="fas fa-hand-pointer"></i>
                     </button>
                 </td>
@@ -536,10 +542,10 @@ async function cargarHistorialVentas() {
             if (cantStr.length === 0) cantStr.push('Ninguno');
 
             tr.innerHTML = `
-                <td>${v.nombre} ${v.apellido}</td>
-                <td>${cantStr.join(' / ')}</td>
-                <td>${v.monto_pagado} Bs.</td>
-                <td>${v.metodo_pago}</td>
+                <td>${escaparHtml(v.nombre)} ${escaparHtml(v.apellido)}</td>
+                <td>${escaparHtml(cantStr.join(' / '))}</td>
+                <td>${escaparHtml(v.monto_pagado)} Bs.</td>
+                <td>${escaparHtml(v.metodo_pago)}</td>
                 <td>${referenciaHTML}</td>
                 <td>${fechaPago}</td>
             `;
@@ -557,36 +563,36 @@ function renderTarjetasEstadisticasCalles(estadisticas, grid) {
         card.className = 'stat-card-calle';
         card.innerHTML = `
             <div class="calle-header">
-                <h3>${est.calle}</h3>
+                <h3>${escaparHtml(est.calle)}</h3>
             </div>
             <div class="calle-stats">
                 <div class="stat-row">
                     <span class="stat-label">Personas:</span>
-                    <span class="stat-value">${est.total_personas}</span>
+                    <span class="stat-value">${escaparHtml(est.total_personas)}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Con Registro:</span>
-                    <span class="stat-value">${est.personas_con_registro}</span>
+                    <span class="stat-value">${escaparHtml(est.personas_con_registro)}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Total Cilindros:</span>
-                    <span class="stat-value highlight">${est.total_cilindros || 0}</span>
+                    <span class="stat-value highlight">${escaparHtml(est.total_cilindros || 0)}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">10kg:</span>
-                    <span class="stat-value">${est.total_10kg || 0}</span>
+                    <span class="stat-value">${escaparHtml(est.total_10kg || 0)}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">18kg:</span>
-                    <span class="stat-value">${est.total_18kg || 0}</span>
+                    <span class="stat-value">${escaparHtml(est.total_18kg || 0)}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">27kg:</span>
-                    <span class="stat-value">${est.total_27kg || 0}</span>
+                    <span class="stat-value">${escaparHtml(est.total_27kg || 0)}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">43kg:</span>
-                    <span class="stat-value">${est.total_43kg || 0}</span>
+                    <span class="stat-value">${escaparHtml(est.total_43kg || 0)}</span>
                 </div>
             </div>
         `;
@@ -688,28 +694,28 @@ function renderTarjetasEstadisticasVentas(estadisticas, grid) {
         card.className = 'stat-card-calle';
         card.innerHTML = `
             <div class="calle-header" style="background: linear-gradient(135deg, #104358 0%, #159895 100%);">
-                <h3>${est.calle}</h3>
+                <h3>${escaparHtml(est.calle)}</h3>
             </div>
             <div class="calle-stats">
                 <div class="stat-row" style="border-bottom: 2px solid rgba(21, 152, 149, 0.2); margin-bottom: 0.5rem; padding-bottom: 0.5rem;">
                     <span class="stat-label" style="font-weight: bold; color: var(--primary);">Total Bombonas:</span>
-                    <span class="stat-value highlight" style="font-size: 1.1rem; font-weight: bold; color: var(--primary);">${est.total_bombonas || 0}</span>
+                    <span class="stat-value highlight" style="font-size: 1.1rem; font-weight: bold; color: var(--primary);">${escaparHtml(est.total_bombonas || 0)}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">10kg:</span>
-                    <span class="stat-value">${est.total_10kg || 0} (${parseFloat(est.monto_10kg || 0).toFixed(2)} Bs.)</span>
+                    <span class="stat-value">${escaparHtml(est.total_10kg || 0)} (${parseFloat(est.monto_10kg || 0).toFixed(2)} Bs.)</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">18kg:</span>
-                    <span class="stat-value">${est.total_18kg || 0} (${parseFloat(est.monto_18kg || 0).toFixed(2)} Bs.)</span>
+                    <span class="stat-value">${escaparHtml(est.total_18kg || 0)} (${parseFloat(est.monto_18kg || 0).toFixed(2)} Bs.)</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">27kg:</span>
-                    <span class="stat-value">${est.total_27kg || 0} (${parseFloat(est.monto_27kg || 0).toFixed(2)} Bs.)</span>
+                    <span class="stat-value">${escaparHtml(est.total_27kg || 0)} (${parseFloat(est.monto_27kg || 0).toFixed(2)} Bs.)</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">43kg:</span>
-                    <span class="stat-value">${est.total_43kg || 0} (${parseFloat(est.monto_43kg || 0).toFixed(2)} Bs.)</span>
+                    <span class="stat-value">${escaparHtml(est.total_43kg || 0)} (${parseFloat(est.monto_43kg || 0).toFixed(2)} Bs.)</span>
                 </div>
                 <div class="stat-row" style="border-top: 2px solid rgba(21, 152, 149, 0.2); margin-top: 0.5rem; padding-top: 0.5rem;">
                     <span class="stat-label" style="font-weight: bold; color: #104358;">Total Recaudado:</span>
