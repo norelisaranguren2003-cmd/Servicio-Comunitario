@@ -554,7 +554,7 @@ app.delete('/bombonas/eliminar/:id', (req, res) => {
     });
 });
 // RUTA PARA REGISTRAR COMPRA Y PAGO
-app.post('/bombonas/comprar', (req, res) => {
+app.post('/bombonas/comprar', async (req, res) => {
     try {
     const { id_registro, id_persona, qty10, qty18, qty27, qty43, monto, metodo, referencia_texto, referencia_foto } = req.body;
     console.log('[COMPRAR] Body recibido:', JSON.stringify(req.body));
@@ -575,71 +575,82 @@ app.post('/bombonas/comprar', (req, res) => {
         FROM registro_bombonas rb 
         WHERE rb.id_registro = ?`;
     
-    db.query(queryCheck, [id_registro], (err, results) => {
-        if (err || results.length === 0) return res.status(500).json({ error: "Error al validar registro" });
-
-        const data = results[0];
-        const disp10 = data.bombonas_10kg - (data.compradas_10kg || 0);
-        const disp18 = data.bombonas_18kg - (data.compradas_18kg || 0);
-        const disp27 = data.bombonas_27kg - (data.compradas_27kg || 0);
-        const disp43 = data.bombonas_43kg - (data.compradas_43kg || 0);
-
-        // 1. Validaciones de disponibilidad (Bloqueo si ya no quedan)
-        if (qty10Num > 0 && disp10 <= 0) return res.status(400).json({ error: "Ya compró sus bombonas de 10kg." });
-        if (qty18Num > 0 && disp18 <= 0) return res.status(400).json({ error: "Ya compró sus bombonas de 18kg." });
-        if (qty27Num > 0 && disp27 <= 0) return res.status(400).json({ error: "Ya compró sus bombonas de 27kg." });
-        if (qty43Num > 0 && disp43 <= 0) return res.status(400).json({ error: "Ya compró sus bombonas de 43kg." });
-
-        // 2. Validaciones con mensajes dinámicos (Singular / Plural)
-        if (qty10Num > disp10) {
-            const msg = disp10 === 1 ? "una sola bombona registrada" : `${disp10} bombonas registradas`;
-            return res.status(400).json({ error: `Solo tiene ${msg} de tamaño 10kg.` });
-        }
-        
-        if (qty18Num > disp18) {
-            const msg = disp18 === 1 ? "una sola bombona registrada" : `${disp18} bombonas registradas`;
-            return res.status(400).json({ error: `Solo tiene ${msg} de tamaño 18kg.` });
-        }
-
-        if (qty27Num > disp27) {
-            const msg = disp27 === 1 ? "una sola bombona registrada" : `${disp27} bombonas registradas`;
-            return res.status(400).json({ error: `Solo tiene ${msg} de tamaño 27kg.` });
-        }
-
-        if (qty43Num > disp43) {
-            const msg = disp43 === 1 ? "una sola bombona registrada" : `${disp43} bombonas registradas`;
-            return res.status(400).json({ error: `Solo tiene ${msg} de tamaño 43kg.` });
-        }
-
-        // 3. Verificar si inicia un nuevo lote de ventas (sin compras en los últimos 15 días)
-        const periodoLoteDias = 15;
-        const queryLote = `SELECT COUNT(*) as total FROM pagos_bombonas pb JOIN registro_bombonas rb ON pb.id_registro = rb.id_registro WHERE rb.id_persona = ? AND pb.fecha_pago > DATE_SUB(NOW(), INTERVAL ? DAY)`;
-
-        db.query(queryLote, [id_persona, periodoLoteDias], (errLote, loteResults) => {
-            if (errLote) return res.status(500).json({ error: "Error al verificar lote de ventas" });
-
-            const esNuevoLote = (loteResults[0].total || 0) === 0;
-
-            const queryPago = `INSERT INTO pagos_bombonas (id_registro, monto_pagado, metodo_pago, cant_10kg, cant_18kg, cant_27kg, cant_43kg, referencia_texto, referencia_foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-            db.query(queryPago, [id_registro, montoNum, metodo, qty10Num, qty18Num, qty27Num, qty43Num, referencia_texto || null, referencia_foto || null], (errPago) => {
-                if (errPago) {
-                    console.error('Error SQL al registrar pago:', errPago.message, errPago.code);
-                    console.error('Datos recibidos:', { id_registro, id_persona, montoNum, metodo, qty10Num, qty18Num, qty27Num, qty43Num });
-                    return res.status(500).json({ error: 'Error al registrar el pago.' });
-                }
-                res.json({
-                    message: "¡Compra procesada con éxito!",
-                    actualizar_estadisticas: esNuevoLote,
-                    periodo_lote_dias: periodoLoteDias
-                });
-            });
+    const results = await new Promise((resolve, reject) => {
+        db.query(queryCheck, [id_registro], (err, results) => {
+            if (err) return reject(err);
+            resolve(results);
         });
+    });
+
+    if (results.length === 0) return res.status(500).json({ error: "Error al validar registro" });
+
+    const data = results[0];
+    const disp10 = data.bombonas_10kg - (data.compradas_10kg || 0);
+    const disp18 = data.bombonas_18kg - (data.compradas_18kg || 0);
+    const disp27 = data.bombonas_27kg - (data.compradas_27kg || 0);
+    const disp43 = data.bombonas_43kg - (data.compradas_43kg || 0);
+
+    // 1. Validaciones de disponibilidad (Bloqueo si ya no quedan)
+    if (qty10Num > 0 && disp10 <= 0) return res.status(400).json({ error: "Ya compró sus bombonas de 10kg." });
+    if (qty18Num > 0 && disp18 <= 0) return res.status(400).json({ error: "Ya compró sus bombonas de 18kg." });
+    if (qty27Num > 0 && disp27 <= 0) return res.status(400).json({ error: "Ya compró sus bombonas de 27kg." });
+    if (qty43Num > 0 && disp43 <= 0) return res.status(400).json({ error: "Ya compró sus bombonas de 43kg." });
+
+    // 2. Validaciones con mensajes dinámicos (Singular / Plural)
+    if (qty10Num > disp10) {
+        const msg = disp10 === 1 ? "una sola bombona registrada" : `${disp10} bombonas registradas`;
+        return res.status(400).json({ error: `Solo tiene ${msg} de tamaño 10kg.` });
+    }
+    
+    if (qty18Num > disp18) {
+        const msg = disp18 === 1 ? "una sola bombona registrada" : `${disp18} bombonas registradas`;
+        return res.status(400).json({ error: `Solo tiene ${msg} de tamaño 18kg.` });
+    }
+
+    if (qty27Num > disp27) {
+        const msg = disp27 === 1 ? "una sola bombona registrada" : `${disp27} bombonas registradas`;
+        return res.status(400).json({ error: `Solo tiene ${msg} de tamaño 27kg.` });
+    }
+
+    if (qty43Num > disp43) {
+        const msg = disp43 === 1 ? "una sola bombona registrada" : `${disp43} bombonas registradas`;
+        return res.status(400).json({ error: `Solo tiene ${msg} de tamaño 43kg.` });
+    }
+
+    // 3. Verificar si inicia un nuevo lote de ventas (sin compras en los últimos 15 días)
+    const periodoLoteDias = 15;
+    const queryLote = `SELECT COUNT(*) as total FROM pagos_bombonas pb JOIN registro_bombonas rb ON pb.id_registro = rb.id_registro WHERE rb.id_persona = ? AND pb.fecha_pago > DATE_SUB(NOW(), INTERVAL ${periodoLoteDias} DAY)`;
+
+    const loteResults = await new Promise((resolve, reject) => {
+        db.query(queryLote, [id_persona], (errLote, loteResults) => {
+            if (errLote) return reject(errLote);
+            resolve(loteResults);
+        });
+    });
+
+    const esNuevoLote = (loteResults[0] && loteResults[0].total || 0) === 0;
+
+    // 4. Generar ID manualmente (TiDB no soporta AUTO_INCREMENT)
+    const nextId = await getNextId('pagos_bombonas', 'id_pago');
+
+    const queryPago = `INSERT INTO pagos_bombonas (id_pago, id_registro, monto_pagado, metodo_pago, cant_10kg, cant_18kg, cant_27kg, cant_43kg, referencia_texto, referencia_foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    await new Promise((resolve, reject) => {
+        db.query(queryPago, [nextId, id_registro, montoNum, metodo, qty10Num, qty18Num, qty27Num, qty43Num, referencia_texto || null, referencia_foto || null], (errPago) => {
+            if (errPago) return reject(errPago);
+            resolve();
+        });
+    });
+
+    res.json({
+        message: "¡Compra procesada con éxito!",
+        actualizar_estadisticas: esNuevoLote,
+        periodo_lote_dias: periodoLoteDias
     });
     } catch (e) {
         console.error('[COMPRAR] Excepción capturada:', e.message, e.stack);
         if (!res.headersSent) {
-            return res.status(500).json({ error: 'Error interno del servidor.' });
+            return res.status(500).json({ error: 'Error al registrar el pago.' });
         }
     }
 });
