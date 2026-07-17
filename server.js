@@ -62,7 +62,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Conexión a MySQL
+// Conexión a MySQL con Pool (Render/TiDB)
 let dbConfig;
 if (process.env.DATABASE_URL) {
     const url = new URL(process.env.DATABASE_URL);
@@ -72,26 +72,42 @@ if (process.env.DATABASE_URL) {
         user: decodeURIComponent(url.username),
         password: decodeURIComponent(url.password),
         database: url.pathname.substring(1),
-        ssl: { rejectUnauthorized: true }
+        ssl: { rejectUnauthorized: false },
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0
     };
-    console.log('📡 Conectando a:', dbConfig.host, dbConfig.database);
+    console.log('📡 Conectando a TiDB:', dbConfig.host, dbConfig.database);
 } else {
     dbConfig = {
         host: 'localhost',
         user: 'root',
         password: '',
-        database: 'servicio_comunitario'
+        database: 'servicio_comunitario',
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
     };
 }
 
-const db = mysql.createConnection(dbConfig);
+const db = mysql.createPool(dbConfig);
 
-db.connect(err => {
+db.getConnection((err, connection) => {
     if (err) {
         console.error('❌ Error al conectar a MySQL:', err.message);
         console.error('Detalles:', err);
     } else {
-        console.log('✅ Conectado a MySQL');
+        console.log('✅ Conectado a MySQL (Pool activo)');
+        connection.release();
+    }
+});
+
+db.on('error', (err) => {
+    console.error('❌ Error en el pool de MySQL:', err.message);
+    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+        console.error('⚠️ Conexión perdida. El pool intentará reconectar automáticamente.');
     }
 });
 
@@ -628,7 +644,10 @@ app.get('/bombonas/estadisticas-calles', (req, res) => {
         FROM personas p
         LEFT JOIN registro_bombonas rb ON p.id_persona = rb.id_persona
         GROUP BY p.calle
-        ORDER BY FIELD(p.calle, 'Calle 1', 'Calle 2', 'Calle 3', 'Calle 4', 'Calle 5', 'Calle 6', 'Calle 7', 'Callejón', NULL)
+        ORDER BY CASE p.calle
+            WHEN 'Calle 1' THEN 1 WHEN 'Calle 2' THEN 2 WHEN 'Calle 3' THEN 3
+            WHEN 'Calle 4' THEN 4 WHEN 'Calle 5' THEN 5 WHEN 'Calle 6' THEN 6
+            WHEN 'Calle 7' THEN 7 WHEN 'Callejón' THEN 8 ELSE 9 END
     `;
 
     db.query(query, (err, results) => {
