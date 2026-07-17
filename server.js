@@ -68,12 +68,13 @@ if (process.env.DATABASE_URL) {
     const url = new URL(process.env.DATABASE_URL);
     dbConfig = {
         host: url.hostname,
-        port: url.port || 3306,
+        port: parseInt(url.port) || 4000,
         user: decodeURIComponent(url.username),
         password: decodeURIComponent(url.password),
-        database: url.pathname.replace('/', ''),
-        ssl: url.searchParams.get('ssl') ? { rejectUnauthorized: true } : undefined
+        database: url.pathname.substring(1),
+        ssl: { rejectUnauthorized: true }
     };
+    console.log('📡 Conectando a:', dbConfig.host, dbConfig.database);
 } else {
     dbConfig = {
         host: 'localhost',
@@ -88,7 +89,7 @@ const db = mysql.createConnection(dbConfig);
 db.connect(err => {
     if (err) {
         console.error('❌ Error al conectar a MySQL:', err.message);
-        console.log('Verifica que la base de datos esté accesible');
+        console.error('Detalles:', err);
     } else {
         console.log('✅ Conectado a MySQL');
     }
