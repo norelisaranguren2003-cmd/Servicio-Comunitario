@@ -798,6 +798,13 @@ function abrirModalEditar(id_persona, cedula, nombre, apellido, sexo, edad, id_e
     document.getElementById("edit-calle").value = calle;
     document.getElementById("edit-estatus").value = estatus;
     
+    ['edit-sexo', 'edit-civil', 'edit-estatus'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.tomselect) {
+            el.tomselect.setValue(el.value);
+        }
+    });
+    
     if (fecha_registro) {
         let fecha;
         if (typeof fecha_registro === 'string' && fecha_registro.includes('-')) {
